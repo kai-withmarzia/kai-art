@@ -48,64 +48,64 @@ canvas.addEventListener('touchmove', e => {
 }, { passive: false });
 canvas.addEventListener('touchend', () => { mouse.active = false; });
 
-// --- Sky gradient shifts ---
-const skyStates = [
-  { top: [12, 14, 35], bottom: [25, 20, 40], name: 'dusk' },
-  { top: [5, 5, 15], bottom: [10, 8, 20], name: 'night' },
-  { top: [20, 15, 30], bottom: [50, 30, 45], name: 'purple twilight' },
-  { top: [8, 12, 25], bottom: [15, 20, 35], name: 'deep blue' },
-  { top: [15, 8, 10], bottom: [35, 15, 20], name: 'ember' },
-];
-let skyIndex = 0;
-let skyBlend = 0;
-const SKY_DURATION = 2400;
-
-function lerpColor(a, b, t) {
-  return a.map((v, i) => Math.round(v + (b[i] - v) * t));
-}
-
-function getSky() {
-  const from = skyStates[skyIndex % skyStates.length];
-  const to = skyStates[(skyIndex + 1) % skyStates.length];
-  const t = skyBlend * skyBlend * (3 - 2 * skyBlend);
-  return {
-    top: lerpColor(from.top, to.top, t),
-    bottom: lerpColor(from.bottom, to.bottom, t),
-  };
-}
-
 // --- Boid parameters ---
-const NUM_BOIDS = 300;
-const VISUAL_RANGE = 60;
-const PROTECTED_RANGE = 16;
-const CENTERING_FACTOR = 0.003;
-const AVOIDANCE_FACTOR = 0.08;
-const MATCHING_FACTOR = 0.04;
-const MAX_SPEED = 4.5;
-const MIN_SPEED = 2;
-const EDGE_MARGIN = 80;
-const EDGE_TURN = 0.3;
-const MOUSE_RANGE = 180;
-const MOUSE_ATTRACT = 0.0008;
+const PARAMS = {
+  count: 300,
+  visualRange: 75,
+  separationDist: 25,
+  cohesionStrength: 0.005,
+  alignmentStrength: 0.05,
+  separationStrength: 0.05,
+  maxSpeed: 3.5,
+  minSpeed: 1.5,
+  edgeMargin: 80,
+  edgeTurnStrength: 0.3,
+  mouseAttractStrength: 0.008,
+  mouseRepelStrength: 0.15,
+  mouseRepelDist: 120,
+  trailAlpha: 0.06,
+};
+
+// --- Color system ---
+// Dusk palette — warm to cool gradient based on flock position
+function boidColor(boid, time) {
+  const nx = boid.x / W;
+  const ny = boid.y / H;
+  const t = time * 0.0003;
+
+  // Shift hue across the canvas — creates spatial color bands
+  const hue = (nx * 40 + ny * 20 + t * 30 + boid.id * 0.5) % 360;
+  const sat = 50 + Math.sin(t + boid.id * 0.1) * 15;
+  const light = 55 + Math.sin(t * 0.7 + ny * Math.PI) * 10;
+
+  return `hsla(${200 + hue * 0.4}, ${sat}%, ${light}%, `;
+}
 
 // --- Boid class ---
 class Boid {
-  constructor() {
+  constructor(id) {
+    this.id = id;
     this.x = Math.random() * W;
     this.y = Math.random() * H;
     const angle = Math.random() * Math.PI * 2;
-    const speed = MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED);
+    const speed = PARAMS.minSpeed + Math.random() * (PARAMS.maxSpeed - PARAMS.minSpeed);
     this.vx = Math.cos(angle) * speed;
     this.vy = Math.sin(angle) * speed;
-    this.trail = [];
-    this.maxTrail = 6 + Math.floor(Math.random() * 6);
-    this.hueOffset = Math.random() * 30 - 15;
-    this.size = 1.5 + Math.random() * 1.5;
+    this.prevX = this.x;
+    this.prevY = this.y;
+    // Each boid has a slightly different personality
+    this.cohesionMult = 0.8 + Math.random() * 0.4;
+    this.alignMult = 0.8 + Math.random() * 0.4;
+    this.separationMult = 0.8 + Math.random() * 0.4;
   }
 
-  update(boids) {
-    let cx = 0, cy = 0, closeDx = 0, closeDy = 0, avgVx = 0, avgVy = 0;
-    let neighbors = 0;
+  update(boids, time) {
+    this.prevX = this.x;
+    this.prevY = this.y;
+
+    let cohX = 0, cohY = 0, cohCount = 0;
+    let aliX = 0, aliY = 0, aliCount = 0;
+    let sepX = 0, sepY = 0;
 
     for (const other of boids) {
       if (other === this) continue;
@@ -113,267 +113,190 @@ class Boid {
       const dy = other.y - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist < VISUAL_RANGE) {
-        // Cohesion
-        cx += other.x;
-        cy += other.y;
-        // Alignment
-        avgVx += other.vx;
-        avgVy += other.vy;
-        neighbors++;
+      if (dist < PARAMS.visualRange) {
+        // Cohesion — steer toward average position
+        cohX += other.x;
+        cohY += other.y;
+        cohCount++;
 
-        // Separation
-        if (dist < PROTECTED_RANGE) {
-          closeDx -= dx;
-          closeDy -= dy;
+        // Alignment — match velocity
+        aliX += other.vx;
+        aliY += other.vy;
+        aliCount++;
+
+        // Separation — avoid crowding
+        if (dist < PARAMS.separationDist && dist > 0) {
+          sepX -= dx / dist;
+          sepY -= dy / dist;
         }
       }
     }
 
-    if (neighbors > 0) {
-      // Cohesion: steer toward center of neighbors
-      cx /= neighbors;
-      cy /= neighbors;
-      this.vx += (cx - this.x) * CENTERING_FACTOR;
-      this.vy += (cy - this.y) * CENTERING_FACTOR;
-
-      // Alignment: match average velocity
-      avgVx /= neighbors;
-      avgVy /= neighbors;
-      this.vx += (avgVx - this.vx) * MATCHING_FACTOR;
-      this.vy += (avgVy - this.vy) * MATCHING_FACTOR;
+    // Apply cohesion
+    if (cohCount > 0) {
+      cohX /= cohCount;
+      cohY /= cohCount;
+      this.vx += (cohX - this.x) * PARAMS.cohesionStrength * this.cohesionMult;
+      this.vy += (cohY - this.y) * PARAMS.cohesionStrength * this.cohesionMult;
     }
 
-    // Separation
-    this.vx += closeDx * AVOIDANCE_FACTOR;
-    this.vy += closeDy * AVOIDANCE_FACTOR;
+    // Apply alignment
+    if (aliCount > 0) {
+      aliX /= aliCount;
+      aliY /= aliCount;
+      this.vx += (aliX - this.vx) * PARAMS.alignmentStrength * this.alignMult;
+      this.vy += (aliY - this.vy) * PARAMS.alignmentStrength * this.alignMult;
+    }
 
-    // Mouse attraction (gentle pull when cursor is near)
+    // Apply separation
+    this.vx += sepX * PARAMS.separationStrength * this.separationMult;
+    this.vy += sepY * PARAMS.separationStrength * this.separationMult;
+
+    // Mouse interaction
     if (mouse.active) {
-      const mdx = mouse.x - this.x;
-      const mdy = mouse.y - this.y;
-      const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
-      if (mdist < MOUSE_RANGE && mdist > 20) {
-        this.vx += mdx * MOUSE_ATTRACT;
-        this.vy += mdy * MOUSE_ATTRACT;
+      const dx = mouse.x - this.x;
+      const dy = mouse.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < PARAMS.mouseRepelDist) {
+        // Close to cursor — repel (scatter!)
+        this.vx -= (dx / dist) * PARAMS.mouseRepelStrength;
+        this.vy -= (dy / dist) * PARAMS.mouseRepelStrength;
+      } else if (dist < PARAMS.visualRange * 4) {
+        // Further — gentle attract (curiosity)
+        this.vx += dx * PARAMS.mouseAttractStrength * 0.01;
+        this.vy += dy * PARAMS.mouseAttractStrength * 0.01;
       }
     }
 
-    // Edge avoidance (soft turn)
-    if (this.x < EDGE_MARGIN) this.vx += EDGE_TURN;
-    if (this.x > W - EDGE_MARGIN) this.vx -= EDGE_TURN;
-    if (this.y < EDGE_MARGIN) this.vy += EDGE_TURN;
-    if (this.y > H - EDGE_MARGIN) this.vy -= EDGE_TURN;
+    // Edge avoidance — soft turn
+    if (this.x < PARAMS.edgeMargin) this.vx += PARAMS.edgeTurnStrength;
+    if (this.x > W - PARAMS.edgeMargin) this.vx -= PARAMS.edgeTurnStrength;
+    if (this.y < PARAMS.edgeMargin) this.vy += PARAMS.edgeTurnStrength;
+    if (this.y > H - PARAMS.edgeMargin) this.vy -= PARAMS.edgeTurnStrength;
+
+    // Subtle wind — a slow global force that shifts over time
+    const windAngle = time * 0.00005;
+    this.vx += Math.cos(windAngle) * 0.02;
+    this.vy += Math.sin(windAngle) * 0.015;
 
     // Speed limits
     const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-    if (speed > MAX_SPEED) {
-      this.vx = (this.vx / speed) * MAX_SPEED;
-      this.vy = (this.vy / speed) * MAX_SPEED;
-    } else if (speed < MIN_SPEED) {
-      this.vx = (this.vx / speed) * MIN_SPEED;
-      this.vy = (this.vy / speed) * MIN_SPEED;
+    if (speed > PARAMS.maxSpeed) {
+      this.vx = (this.vx / speed) * PARAMS.maxSpeed;
+      this.vy = (this.vy / speed) * PARAMS.maxSpeed;
+    } else if (speed < PARAMS.minSpeed) {
+      this.vx = (this.vx / speed) * PARAMS.minSpeed;
+      this.vy = (this.vy / speed) * PARAMS.minSpeed;
     }
 
-    // Trail
-    this.trail.push({ x: this.x, y: this.y });
-    if (this.trail.length > this.maxTrail) this.trail.shift();
-
-    // Move
     this.x += this.vx;
     this.y += this.vy;
   }
-}
 
-// Create flock
-const boids = [];
-for (let i = 0; i < NUM_BOIDS; i++) {
-  boids.push(new Boid());
-}
+  draw(ctx, time) {
+    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    const alpha = 0.3 + (speed / PARAMS.maxSpeed) * 0.5;
+    const size = 1.5 + (speed / PARAMS.maxSpeed) * 1.5;
+    const color = boidColor(this, time);
 
-// --- Spatial grid for performance ---
-function buildGrid(boids, cellSize) {
-  const grid = {};
-  for (const b of boids) {
-    const cx = Math.floor(b.x / cellSize);
-    const cy = Math.floor(b.y / cellSize);
-    const key = `${cx},${cy}`;
-    if (!grid[key]) grid[key] = [];
-    grid[key].push(b);
+    // Draw motion trail
+    const trailLen = speed * 3;
+    const angle = Math.atan2(this.vy, this.vx);
+    const tailX = this.x - Math.cos(angle) * trailLen;
+    const tailY = this.y - Math.sin(angle) * trailLen;
+
+    ctx.beginPath();
+    ctx.moveTo(tailX, tailY);
+    ctx.lineTo(this.x, this.y);
+    ctx.strokeStyle = color + (alpha * 0.4) + ')';
+    ctx.lineWidth = size * 0.6;
+    ctx.stroke();
+
+    // Draw body
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = color + alpha + ')';
+    ctx.fill();
   }
-  return grid;
 }
 
-function getNeighborCells(grid, x, y, cellSize) {
-  const cx = Math.floor(x / cellSize);
-  const cy = Math.floor(y / cellSize);
-  const result = [];
-  for (let dx = -1; dx <= 1; dx++) {
-    for (let dy = -1; dy <= 1; dy++) {
-      const key = `${cx + dx},${cy + dy}`;
-      if (grid[key]) result.push(...grid[key]);
+// --- Spatial hash for performance ---
+class SpatialHash {
+  constructor(cellSize) {
+    this.cellSize = cellSize;
+    this.cells = new Map();
+  }
+
+  clear() {
+    this.cells.clear();
+  }
+
+  key(x, y) {
+    return `${Math.floor(x / this.cellSize)},${Math.floor(y / this.cellSize)}`;
+  }
+
+  insert(boid) {
+    const k = this.key(boid.x, boid.y);
+    if (!this.cells.has(k)) this.cells.set(k, []);
+    this.cells.get(k).push(boid);
+  }
+
+  query(boid, range) {
+    const results = [];
+    const cx = Math.floor(boid.x / this.cellSize);
+    const cy = Math.floor(boid.y / this.cellSize);
+    const r = Math.ceil(range / this.cellSize);
+
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        const k = `${cx + dx},${cy + dy}`;
+        const cell = this.cells.get(k);
+        if (cell) results.push(...cell);
+      }
     }
+    return results;
   }
-  return result;
 }
 
-// --- Render ---
+// --- Initialize ---
+const boids = [];
+for (let i = 0; i < PARAMS.count; i++) {
+  boids.push(new Boid(i));
+}
+const grid = new SpatialHash(PARAMS.visualRange);
+
+// --- Main loop ---
 let time = 0;
 
 function draw() {
   time++;
-  skyBlend += 1 / SKY_DURATION;
-  if (skyBlend >= 1) { skyBlend = 0; skyIndex++; }
 
-  const sky = getSky();
-
-  // Sky gradient
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, `rgb(${sky.top.join(',')})`);
-  grad.addColorStop(1, `rgb(${sky.bottom.join(',')})`);
-  ctx.fillStyle = grad;
+  // Fade trail
+  ctx.fillStyle = `rgba(10, 10, 15, ${PARAMS.trailAlpha})`;
   ctx.fillRect(0, 0, W, H);
 
-  // Build spatial grid
-  const grid = buildGrid(boids, VISUAL_RANGE);
+  // Build spatial hash
+  grid.clear();
+  for (const b of boids) grid.insert(b);
 
-  // Update boids with spatial neighbors
-  for (const boid of boids) {
-    const nearby = getNeighborCells(grid, boid.x, boid.y, VISUAL_RANGE);
-    // Temporarily replace update to use nearby instead of all boids
-    let cx = 0, cy = 0, closeDx = 0, closeDy = 0, avgVx = 0, avgVy = 0;
-    let neighbors = 0;
-
-    for (const other of nearby) {
-      if (other === boid) continue;
-      const dx = other.x - boid.x;
-      const dy = other.y - boid.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < VISUAL_RANGE) {
-        cx += other.x;
-        cy += other.y;
-        avgVx += other.vx;
-        avgVy += other.vy;
-        neighbors++;
-        if (dist < PROTECTED_RANGE) {
-          closeDx -= dx;
-          closeDy -= dy;
-        }
-      }
-    }
-
-    if (neighbors > 0) {
-      cx /= neighbors;
-      cy /= neighbors;
-      boid.vx += (cx - boid.x) * CENTERING_FACTOR;
-      boid.vy += (cy - boid.y) * CENTERING_FACTOR;
-      avgVx /= neighbors;
-      avgVy /= neighbors;
-      boid.vx += (avgVx - boid.vx) * MATCHING_FACTOR;
-      boid.vy += (avgVy - boid.vy) * MATCHING_FACTOR;
-    }
-
-    boid.vx += closeDx * AVOIDANCE_FACTOR;
-    boid.vy += closeDy * AVOIDANCE_FACTOR;
-
-    if (mouse.active) {
-      const mdx = mouse.x - boid.x;
-      const mdy = mouse.y - boid.y;
-      const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
-      if (mdist < MOUSE_RANGE && mdist > 20) {
-        boid.vx += mdx * MOUSE_ATTRACT;
-        boid.vy += mdy * MOUSE_ATTRACT;
-      }
-    }
-
-    if (boid.x < EDGE_MARGIN) boid.vx += EDGE_TURN;
-    if (boid.x > W - EDGE_MARGIN) boid.vx -= EDGE_TURN;
-    if (boid.y < EDGE_MARGIN) boid.vy += EDGE_TURN;
-    if (boid.y > H - EDGE_MARGIN) boid.vy -= EDGE_TURN;
-
-    const speed = Math.sqrt(boid.vx * boid.vx + boid.vy * boid.vy);
-    if (speed > MAX_SPEED) {
-      boid.vx = (boid.vx / speed) * MAX_SPEED;
-      boid.vy = (boid.vy / speed) * MAX_SPEED;
-    } else if (speed < MIN_SPEED) {
-      boid.vx = (boid.vx / speed) * MIN_SPEED;
-      boid.vy = (boid.vy / speed) * MIN_SPEED;
-    }
-
-    boid.trail.push({ x: boid.x, y: boid.y });
-    if (boid.trail.length > boid.maxTrail) boid.trail.shift();
-
-    boid.x += boid.vx;
-    boid.y += boid.vy;
+  // Update using spatial neighbors
+  for (const b of boids) {
+    const neighbors = grid.query(b, PARAMS.visualRange);
+    b.update(neighbors, time);
   }
 
-  // Draw trails
-  const baseHue = (time * 0.1) % 360;
-  for (const boid of boids) {
-    const hue = (baseHue + boid.hueOffset + 240) % 360; // start in blue range
-    if (boid.trail.length > 1) {
-      ctx.beginPath();
-      ctx.moveTo(boid.trail[0].x, boid.trail[0].y);
-      for (let i = 1; i < boid.trail.length; i++) {
-        ctx.lineTo(boid.trail[i].x, boid.trail[i].y);
-      }
-      ctx.strokeStyle = `hsla(${hue}, 40%, 60%, 0.15)`;
-      ctx.lineWidth = boid.size * 0.6;
-      ctx.stroke();
-    }
-  }
-
-  // Draw boids
-  for (const boid of boids) {
-    const hue = (baseHue + boid.hueOffset + 240) % 360;
-    const speed = Math.sqrt(boid.vx * boid.vx + boid.vy * boid.vy);
-    const angle = Math.atan2(boid.vy, boid.vx);
-
-    // Draw as small directional marks (like distant birds)
-    const len = boid.size * 2 + (speed / MAX_SPEED) * 2;
-    const wingAngle = 0.4;
-
-    ctx.save();
-    ctx.translate(boid.x, boid.y);
-    ctx.rotate(angle);
-
-    // Body
-    ctx.beginPath();
-    ctx.moveTo(len, 0);
-    ctx.lineTo(-len * 0.5, -len * wingAngle);
-    ctx.lineTo(-len * 0.3, 0);
-    ctx.lineTo(-len * 0.5, len * wingAngle);
-    ctx.closePath();
-
-    const lightness = 55 + (speed / MAX_SPEED) * 20;
-    const alpha = 0.6 + (speed / MAX_SPEED) * 0.3;
-    ctx.fillStyle = `hsla(${hue}, 35%, ${lightness}%, ${alpha})`;
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  // Subtle connection lines between very close boids
-  ctx.strokeStyle = `hsla(${(baseHue + 240) % 360}, 20%, 50%, 0.04)`;
-  ctx.lineWidth = 0.5;
-  for (let i = 0; i < boids.length; i++) {
-    for (let j = i + 1; j < boids.length; j++) {
-      const dx = boids[i].x - boids[j].x;
-      const dy = boids[i].y - boids[j].y;
-      const dist = dx * dx + dy * dy;
-      if (dist < 900) { // 30px
-        ctx.beginPath();
-        ctx.moveTo(boids[i].x, boids[i].y);
-        ctx.lineTo(boids[j].x, boids[j].y);
-        ctx.stroke();
-      }
-    }
+  // Draw
+  for (const b of boids) {
+    b.draw(ctx, time);
   }
 
   requestAnimationFrame(draw);
 }
 
+// Start dark
+ctx.fillStyle = 'rgb(10, 10, 15)';
+ctx.fillRect(0, 0, W, H);
 draw();
 </script>
 </body>
