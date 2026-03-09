@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tidal — Kai 🌊</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #0a0a0f; overflow: hidden; }
+  canvas { display: block; }
+  .signature {
+    position: fixed;
+    bottom: 16px;
+    right: 20px;
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    color: rgba(255,255,255,0.15);
+    letter-spacing: 1px;
+    pointer-events: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div class="signature">tidal — kai 🌊</div>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- Palette ---
+// Colors inspired by ocean at different times of day
+const palettes = [
+  // Deep night ocean
+  { bg: [8, 8, 18], colors: [[20, 60, 120], [40, 90, 160], [10, 40, 80], [60, 120, 180]] },
+  // Dawn
+  { bg: [15, 10, 20], colors: [[140, 60, 80], [180, 100, 60], [60, 40, 90], [200, 140, 80]] },
+  // Golden hour
+  { bg: [12, 8, 6], colors: [[200, 120, 40], [160, 80, 30], [220, 160, 60], [100, 60, 30]] },
+  // Storm
+  { bg: [6, 8, 12], colors: [[40, 50, 70], [60, 80, 100], [30, 40, 60], [80, 100, 130]] },
+  // Bioluminescence
+  { bg: [4, 8, 12], colors: [[20, 180, 160], [40, 120, 200], [10, 200, 120], [60, 80, 180]] },
+];
+
+// --- Wave system ---
+class Wave {
+  constructor(index, total) {
+    this.index = index;
+    this.total = total;
+    this.amplitude = 30 + Math.random() * 80;
+    this.frequency = 0.002 + Math.random() * 0.006;
+    this.phase = Math.random() * Math.PI * 2;
+    this.speed = 0.005 + Math.random() * 0.015;
+    this.yOffset = (index / total) * 0.7 + 0.15; // spread across 15%-85% of height
+    this.harmonics = Math.floor(1 + Math.random() * 3);
+    this.drift = (Math.random() - 0.5) * 0.0001; // slow frequency drift
+    this.amplitudeOsc = 0.3 + Math.random() * 0.7;
+    this.amplitudeSpeed = 0.001 + Math.random() * 0.003;
+  }
+
+  getY(x, time) {
+    let y = H * this.yOffset;
+    const ampMod = this.amplitude * (0.5 + 0.5 * Math.sin(time * this.amplitudeSpeed));
+    for (let h = 1; h <= this.harmonics; h++) {
+      const freq = this.frequency * h + this.drift * time;
+      const amp = ampMod / h;
+      y += Math.sin(x * freq + this.phase + time * this.speed * h) * amp;
+    }
+    return y;
+  }
+}
+
+const NUM_WAVES = 12;
+const waves = [];
+for (let i = 0; i < NUM_WAVES; i++) {
+  waves.push(new Wave(i, NUM_WAVES));
+}
+
+// --- Particles (foam/spray) ---
+class Particle {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.x = Math.random() * W;
+    this.waveIndex = Math.floor(Math.random() * NUM_WAVES);
+    this.xOffset = Math.random() * 20 - 10;
+    this.yOffset = Math.random() * 10 - 5;
+    this.life = 0;
+    this.maxLife = 200 + Math.random() * 400;
+    this.size = 0.5 + Math.random() * 2;
+    this.brightness = 0.3 + Math.random() * 0.7;
+  }
+  update(time) {
+    this.life++;
+    if (this.life > this.maxLife) this.reset();
+    this.x += Math.sin(time * 0.01 + this.waveIndex) * 0.3;
+  }
+  getAlpha() {
+    const t = this.life / this.maxLife;
+    // Fade in and out
+    if (t < 0.1) return t / 0.1;
+    if (t > 0.8) return (1 - t) / 0.2;
+    return 1;
+  }
+}
+
+const NUM_PARTICLES = 150;
+const particles = [];
+for (let i = 0; i < NUM_PARTICLES; i++) {
+  const p = new Particle();
+  p.life = Math.random() * p.maxLife; // stagger start
+  particles.push(p);
+}
+
+// --- Animation ---
+let time = 0;
+let paletteIndex = 0;
+let paletteBlend = 0;
+const PALETTE_DURATION = 1800; // frames per palette (~30s at 60fps)
+
+function lerpColor(a, b, t) {
+  return a.map((v, i) => Math.round(v + (b[i] - v) * t));
+}
+
+function getCurrentPalette() {
+  const from = palettes[paletteIndex % palettes.length];
+  const to = palettes[(paletteIndex + 1) % palettes.length];
+  const t = paletteBlend;
+  const smooth = t * t * (3 - 2 * t); // smoothstep
+  return {
+    bg: lerpColor(from.bg, to.bg, smooth),
+    colors: from.colors.map((c, i) => lerpColor(c, to.colors[i], smooth)),
+  };
+}
+
+function draw() {
+  time++;
+  paletteBlend += 1 / PALETTE_DURATION;
+  if (paletteBlend >= 1) {
+    paletteBlend = 0;
+    paletteIndex++;
+  }
+
+  const pal = getCurrentPalette();
+
+  // Fade effect — trails
+  ctx.fillStyle = `rgba(${pal.bg[0]}, ${pal.bg[1]}, ${pal.bg[2]}, 0.08)`;
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw waves
+  for (let i = 0; i < NUM_WAVES; i++) {
+    const wave = waves[i];
+    const color = pal.colors[i % pal.colors.length];
+    const alpha = 0.15 + (i / NUM_WAVES) * 0.2;
+
+    ctx.beginPath();
+    ctx.moveTo(0, wave.getY(0, time));
+
+    for (let x = 0; x <= W; x += 3) {
+      ctx.lineTo(x, wave.getY(x, time));
+    }
+
+    ctx.strokeStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
+    ctx.lineWidth = 1 + (i / NUM_WAVES) * 2;
+    ctx.stroke();
+
+    // Fill below the wave with very subtle color
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha * 0.05})`;
+    ctx.fill();
+  }
+
+  // Draw interference highlights where waves cross
+  for (let x = 0; x < W; x += 8) {
+    let crossings = 0;
+    let avgY = 0;
+    for (let i = 0; i < NUM_WAVES; i++) {
+      const y = waves[i].getY(x, time);
+      avgY += y;
+      for (let j = i + 1; j < NUM_WAVES; j++) {
+        const y2 = waves[j].getY(x, time);
+        if (Math.abs(y - y2) < 8) crossings++;
+      }
+    }
+    if (crossings > 2) {
+      avgY /= NUM_WAVES;
+      const intensity = Math.min(crossings / 8, 1);
+      const color = pal.colors[0];
+      ctx.beginPath();
+      ctx.arc(x, avgY, 1 + intensity * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${Math.min(color[0] + 100, 255)}, ${Math.min(color[1] + 100, 255)}, ${Math.min(color[2] + 100, 255)}, ${intensity * 0.3})`;
+      ctx.fill();
+    }
+  }
+
+  // Draw particles
+  for (const p of particles) {
+    p.update(time);
+    const wave = waves[p.waveIndex];
+    const y = wave.getY(p.x, time) + p.yOffset;
+    const alpha = p.getAlpha() * p.brightness * 0.4;
+    const color = pal.colors[p.waveIndex % pal.colors.length];
+
+    ctx.beginPath();
+    ctx.arc(p.x + p.xOffset, y, p.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${Math.min(color[0] + 80, 255)}, ${Math.min(color[1] + 80, 255)}, ${Math.min(color[2] + 80, 255)}, ${alpha})`;
+    ctx.fill();
+  }
+
+  requestAnimationFrame(draw);
+}
+
+// Start with a full dark frame
+ctx.fillStyle = `rgb(${palettes[0].bg.join(',')})`;
+ctx.fillRect(0, 0, W, H);
+
+draw();
+</script>
+</body>
+</html>
