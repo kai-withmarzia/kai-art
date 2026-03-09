@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coral — Kai 🌊</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #060a10; overflow: hidden; }
+  canvas { display: block; }
+  .signature {
+    position: fixed;
+    bottom: 16px;
+    right: 20px;
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    color: rgba(255,255,255,0.12);
+    letter-spacing: 1px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #start-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 10, 16, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    cursor: pointer;
+    transition: opacity 0.8s ease;
+  }
+  #start-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #start-overlay h1 {
+    font-family: 'Georgia', serif;
+    font-size: 2.4rem;
+    font-weight: normal;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 12px;
+    letter-spacing: 2px;
+  }
+  #start-overlay p {
+    font-family: 'Georgia', serif;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 1px;
+  }
+  #start-overlay .hint {
+    margin-top: 40px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.15);
+  }
+</style>
+</head>
+<body>
+<div id="start-overlay">
+  <h1>Coral 🪸</h1>
+  <p>a reef that composes itself</p>
+  <p class="hint">click anywhere to begin — sound on</p>
+</div>
+<canvas id="canvas"></canvas>
+<div class="signature">coral — kai 🌊</div>
+
+<script>
+// --- Audio setup (Web Audio API) ---
+let audioCtx = null;
+let masterGain = null;
+let reverbNode = null;
+let reverbGain = null;
+
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.3;
+
+  // Create underwater reverb via convolution
+  reverbGain = audioCtx.createGain();
+  reverbGain.gain.value = 0.4;
+
+  // Fake reverb with delay feedback
+  const delay1 = audioCtx.createDelay(1);
+  delay1.delayTime.value = 0.15;
+  const delay2 = audioCtx.createDelay(1);
+  delay2.delayTime.value = 0.23;
+  const delay3 = audioCtx.createDelay(1);
+  delay3.delayTime.value = 0.37;
+
+  const fb1 = audioCtx.createGain();
+  fb1.gain.value = 0.3;
+  const fb2 = audioCtx.createGain();
+  fb2.gain.value = 0.25;
+  const fb3 = audioCtx.createGain();
+  fb3.gain.value = 0.2;
+
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.value = 1200;
+  lpf.Q.value = 0.5;
+
+  // Wire reverb
+  masterGain.connect(audioCtx.destination);
+  masterGain.connect(delay1);
+  masterGain.connect(delay2);
+  masterGain.connect(delay3);
+  delay1.connect(fb1); fb1.connect(lpf);
+  delay2.connect(fb2); fb2.connect(lpf);
+  delay3.connect(fb3); fb3.connect(lpf);
+  lpf.connect(reverbGain);
+  reverbGain.connect(audioCtx.destination);
+  // Feedback loops
+  fb1.connect(delay1);
+  fb2.connect(delay2);
+  fb3.connect(delay3);
+}
+
+// Pentatonic scale — always harmonious
+const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
+function noteToFreq(note) {
+  // Base frequency around C3
+  return 130.81 * Math.pow(2, note / 12);
+}
+
+function playGrowthTone(y, x, branchType) {
+  if (!audioCtx) return;
+
+  const now = audioCtx.currentTime;
+
+  // Map y position (bottom=low, top=high) to scale degree
+  const normalY = 1 - (y / H); // flip so top = high
+  const scaleIndex = Math.floor(normalY * (SCALE.length - 1));
+  const note = SCALE[Math.min(scaleIndex, SCALE.length - 1)];
+  const freq = noteToFreq(note);
+
+  // Slight detuning based on x position for width
+  const detune = (x / W - 0.5) * 15;
+
+  // Different timbres for different growth types
+  const osc = audioCtx.createOscillator();
+  const env = audioCtx.createGain();
+
+  if (branchType === 'branch') {
+    osc.type = 'triangle';
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(0.12, now + 0.05);
+    env.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+  } else if (branchType === 'fan') {
+    osc.type = 'sine';
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(0.08, now + 0.1);
+    env.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+  } else {
+    // bulb/blob
+    osc.type = 'sine';
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(0.06, now + 0.15);
+    env.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+  }
+
+  osc.frequency.value = freq;
+  osc.detune.value = detune;
+
+  // Subtle filter sweep
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(freq * 3, now);
+  filter.frequency.exponentialRampToValueAtTime(freq * 0.8, now + 2);
+  filter.Q.value = 1;
+
+  osc.connect(filter);
+  filter.connect(env);
+  env.connect(masterGain);
+
+  osc.start(now);
+  osc.stop(now + 3.5);
+
+  // Occasional harmonic overtone
+  if (Math.random() < 0.3) {
+    const osc2 = audioCtx.createOscillator();
+    const env2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 2;
+    osc2.detune.value = detune + Math.random() * 5;
+    env2.gain.setValueAtTime(0, now);
+    env2.gain.linearRampToValueAtTime(0.03, now + 0.1);
+    env2.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+    osc2.connect(env2);
+    env2.connect(masterGain);
+    osc2.start(now + 0.05);
+    osc2.stop(now + 2.5);
+  }
+}
+
+// Ambient background drone
+function startDrone() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+
+  // Deep ocean drone
+  const drone1 = audioCtx.createOscillator();
+  drone1.type = 'sine';
+  drone1.frequency.value = 55; // A1
+  const droneGain1 = audioCtx.createGain();
+  droneGain1.gain.value = 0.04;
+
+  const drone2 = audioCtx.createOscillator();
+  drone2.type = 'sine';
+  drone2.frequency.value = 82.41; // E2
+  const droneGain2 = audioCtx.createGain();
+  droneGain2.gain.value = 0.025;
+
+  // Very slow LFO on drone volume
+  const lfo = audioCtx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 0.05;
+  const lfoGain = audioCtx.createGain();
+  lfoGain.gain.value = 0.015;
+
+  drone1.connect(droneGain1);
+  drone2.connect(droneGain2);
+  droneGain1.connect(masterGain);
+  droneGain2.connect(masterGain);
+
+  lfo.connect(lfoGain);
+  lfoGain.connect(droneGain1.gain);
+  lfoGain.connect(droneGain2.gain);
+
+  drone1.start(now);
+  drone2.start(now);
+  lfo.start(now);
+
+  // Bubble sounds — occasional random high plinks
+  setInterval(() => {
+    if (Math.random() < 0.15) {
+      const bub = audioCtx.createOscillator();
+      const bubEnv = audioCtx.createGain();
+      bub.type = 'sine';
+      bub.frequency.value = 800 + Math.random() * 2000;
+      const t = audioCtx.currentTime;
+      bubEnv.gain.setValueAtTime(0, t);
+      bubEnv.gain.linearRampToValueAtTime(0.015, t + 0.01);
+      bubEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      bub.frequency.exponentialRampToValueAtTime(bub.frequency.value * 0.5, t + 0.3);
+      bub.connect(bubEnv);
+      bubEnv.connect(masterGain);
+      bub.start(t);
+      bub.stop(t + 0.4);
+    }
+  }, 800);
+}
+
+// --- Canvas setup ---
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- Coral system ---
+const corals = [];
+const MAX_SEGMENTS = 8000;
+let totalSegments = 0;
+
+// Color palettes for different coral species
+const CORAL_PALETTES = [
+  // Warm coral — pinks and oranges
+  { h: [340, 20], s: [60, 80], l: [55, 70] },
+  // Brain coral — muted purples
+  { h: [270, 310], s: [40, 60], l: [45, 60] },
+  // Sea fan — golden yellow
+  { h: [35, 55], s: [70, 90], l: [50, 65] },
+  // Deep coral — teal and cyan
+  { h: [170, 195], s: [50, 75], l: [40, 60] },
+  // Fire coral — reds
+  { h: [350, 370], s: [65, 85], l: [45, 60] },
+  // Soft coral — lavender
+  { h: [250, 280], s: [45, 65], l: [60, 75] },
+];
+
+class CoralBranch {
+  constructor(x, y, angle, length, thickness, depth, palette, type) {
+    this.x = x;
+    this.y = y;
+    this.angle = angle;
+    this.length = length;
+    this.thickness = thickness;
+    this.depth = depth;
+    this.palette = palette;
+    this.type = type; // 'branch', 'fan', 'bulb'
+    this.segments = [];
+    this.growing = true;
+    this.grown = 0;
+    this.growSpeed = 0.3 + Math.random() * 0.5;
+    this.children = [];
+    this.maxDepth = 6 + Math.floor(Math.random() * 4);
+    this.curve = (Math.random() - 0.5) * 0.02;
+    this.sway = Math.random() * Math.PI * 2;
+    this.swayAmp = 0.005 + Math.random() * 0.01;
+    this.swaySpeed = 0.005 + Math.random() * 0.01;
+
+    // Pre-calculate segment targets
+    this.targetSegments = Math.floor(length / 2);
+    this.currentAngle = angle;
+  }
+
+  grow(time) {
+    if (!this.growing || totalSegments >= MAX_SEGMENTS) return;
+
+    this.grown += this.growSpeed;
+
+    while (this.segments.length < this.grown && this.segments.length < this.targetSegments) {
+      // Organic curve
+      this.currentAngle += this.curve + Math.sin(this.sway + time * this.swaySpeed) * this.swayAmp;
+
+      const prevX = this.segments.length > 0 ? this.segments[this.segments.length - 1].x : this.x;
+      const prevY = this.segments.length > 0 ? this.segments[this.segments.length - 1].y : this.y;
+
+      const nx = prevX + Math.cos(this.currentAngle) * 2;
+      const ny = prevY + Math.sin(this.currentAngle) * 2;
+
+      const progress = this.segments.length / this.targetSegments;
+      const thick = this.thickness * (1 - progress * 0.7);
+
+      // Color variation along branch
+      const pal = this.palette;
+      const h = pal.h[0] + (pal.h[1] - pal.h[0]) * (progress * 0.5 + Math.sin(time * 0.001 + this.sway) * 0.2);
+      const s = pal.s[0] + (pal.s[1] - pal.s[0]) * progress;
+      const l = pal.l[0] + (pal.l[1] - pal.l[0]) * progress;
+
+      this.segments.push({ x: nx, y: ny, thick, h, s, l });
+      totalSegments++;
+
+      // Play tone on every Nth segment to avoid overwhelming audio
+      if (this.segments.length % 8 === 0) {
+        playGrowthTone(ny, nx, this.type);
+      }
+
+      // Spawn children
+      if (this.segments.length > 10 && this.depth < this.maxDepth) {
+        const spawnChance = this.type === 'fan' ? 0.08 : 0.04;
+        if (Math.random() < spawnChance) {
+          this.spawnChild(nx, ny, progress, time);
+        }
+      }
+    }
+
+    if (this.segments.length >= this.targetSegments) {
+      this.growing = false;
+      // Terminal growth — sometimes spawn a bulb or fan
+      if (this.depth < this.maxDepth && Math.random() < 0.6) {
+        const last = this.segments[this.segments.length - 1];
+        this.spawnChild(last.x, last.y, 1, time);
+      }
+    }
+
+    // Grow children
+    for (const child of this.children) {
+      child.grow(time);
+    }
+  }
+
+  spawnChild(x, y, progress, time) {
+    const spread = this.type === 'fan' ? 0.6 : 0.4;
+    const angleOff = (Math.random() - 0.5) * spread + this.currentAngle;
+    const newLength = this.length * (0.5 + Math.random() * 0.3);
+    const newThick = this.thickness * (0.5 + Math.random() * 0.3);
+    const childType = Math.random() < 0.2 ? 'fan' : (Math.random() < 0.3 ? 'bulb' : 'branch');
+
+    const child = new CoralBranch(
+      x, y, angleOff, newLength, newThick,
+      this.depth + 1, this.palette, childType
+    );
+    this.children.push(child);
+  }
+
+  draw(ctx, time) {
+    if (this.segments.length < 2) return;
+
+    // Draw segments
+    for (let i = 1; i < this.segments.length; i++) {
+      const prev = this.segments[i - 1];
+      const seg = this.segments[i];
+
+      // Gentle sway animation
+      const swayOffset = Math.sin(time * 0.003 + seg.y * 0.01 + this.sway) * 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(prev.x + swayOffset * 0.8, prev.y);
+      ctx.lineTo(seg.x + swayOffset, seg.y);
+      ctx.strokeStyle = `hsla(${seg.h}, ${seg.s}%, ${seg.l}%, 0.7)`;
+      ctx.lineWidth = seg.thick;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Glow effect
+      if (seg.thick > 1.5) {
+        ctx.beginPath();
+        ctx.arc(seg.x + swayOffset, seg.y, seg.thick * 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${seg.h}, ${seg.s}%, ${seg.l + 10}%, 0.04)`;
+        ctx.fill();
+      }
+    }
+
+    // Draw polyp dots at tips
+    if (!this.growing && this.segments.length > 0) {
+      const tip = this.segments[this.segments.length - 1];
+      const swayOffset = Math.sin(time * 0.003 + tip.y * 0.01 + this.sway) * 1.5;
+      const pulse = 0.5 + Math.sin(time * 0.01 + this.sway) * 0.3;
+
+      ctx.beginPath();
+      ctx.arc(tip.x + swayOffset, tip.y, 2 + pulse, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${tip.h + 20}, ${tip.s + 10}%, ${tip.l + 15}%, ${0.4 + pulse * 0.3})`;
+      ctx.fill();
+    }
+
+    // Draw children
+    for (const child of this.children) {
+      child.draw(ctx, time);
+    }
+  }
+}
+
+// Spawn coral colonies from the bottom
+function spawnColony() {
+  if (totalSegments >= MAX_SEGMENTS * 0.9) return;
+
+  const x = Math.random() * W;
+  const y = H - 10 - Math.random() * 30;
+  const palette = CORAL_PALETTES[Math.floor(Math.random() * CORAL_PALETTES.length)];
+  const type = Math.random() < 0.3 ? 'fan' : 'branch';
+
+  // Main upward angle with some spread
+  const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+  const length = 80 + Math.random() * 150;
+  const thickness = 3 + Math.random() * 5;
+
+  const coral = new CoralBranch(x, y, angle, length, thickness, 0, palette, type);
+  corals.push(coral);
+}
+
+// --- Water particles (floating specs) ---
+class WaterParticle {
+  constructor() {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.size = 0.5 + Math.random() * 1.5;
+    this.speedX = (Math.random() - 0.5) * 0.3;
+    this.speedY = -0.1 - Math.random() * 0.2;
+    this.alpha = 0.1 + Math.random() * 0.2;
+    this.phase = Math.random() * Math.PI * 2;
+  }
+
+  update(time) {
+    this.x += this.speedX + Math.sin(time * 0.002 + this.phase) * 0.2;
+    this.y += this.speedY;
+    if (this.y < -10) { this.y = H + 10; this.x = Math.random() * W; }
+    if (this.x < -10) this.x = W + 10;
+    if (this.x > W + 10) this.x = -10;
+  }
+
+  draw(ctx) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(150, 200, 220, ${this.alpha})`;
+    ctx.fill();
+  }
+}
+
+const waterParticles = [];
+for (let i = 0; i < 80; i++) {
+  waterParticles.push(new WaterParticle());
+}
+
+// --- Light rays ---
+function drawLightRays(ctx, time) {
+  const rayCount = 5;
+  for (let i = 0; i < rayCount; i++) {
+    const x = W * (0.2 + i * 0.15) + Math.sin(time * 0.0005 + i) * 50;
+    const spread = 60 + Math.sin(time * 0.001 + i * 2) * 20;
+    const alpha = 0.015 + Math.sin(time * 0.002 + i) * 0.005;
+
+    const grad = ctx.createLinearGradient(x, 0, x + spread, H);
+    grad.addColorStop(0, `rgba(100, 180, 220, ${alpha})`);
+    grad.addColorStop(0.5, `rgba(80, 160, 200, ${alpha * 0.5})`);
+    grad.addColorStop(1, 'rgba(80, 160, 200, 0)');
+
+    ctx.beginPath();
+    ctx.moveTo(x - spread / 2, 0);
+    ctx.lineTo(x + spread / 2, 0);
+    ctx.lineTo(x + spread, H);
+    ctx.lineTo(x - spread * 0.5, H);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+}
+
+// --- Sandy bottom ---
+function drawSeafloor(ctx, time) {
+  const grad = ctx.createLinearGradient(0, H - 60, 0, H);
+  grad.addColorStop(0, 'rgba(30, 25, 20, 0)');
+  grad.addColorStop(0.5, 'rgba(40, 35, 25, 0.3)');
+  grad.addColorStop(1, 'rgba(50, 40, 30, 0.5)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, H - 60, W, 60);
+}
+
+// --- Main loop ---
+let time = 0;
+let lastSpawn = 0;
+let started = false;
+
+function draw() {
+  time++;
+
+  // Water background with depth gradient
+  const waterGrad = ctx.createLinearGradient(0, 0, 0, H);
+  waterGrad.addColorStop(0, 'rgba(8, 20, 35, 0.1)');
+  waterGrad.addColorStop(1, 'rgba(6, 10, 16, 0.1)');
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Light rays
+  drawLightRays(ctx, time);
+
+  // Seafloor
+  drawSeafloor(ctx, time);
+
+  // Water particles
+  for (const p of waterParticles) {
+    p.update(time);
+    p.draw(ctx);
+  }
+
+  // Spawn new colonies periodically
+  if (time - lastSpawn > 300 && corals.length < 15) {
+    spawnColony();
+    lastSpawn = time;
+  }
+
+  // Grow and draw corals
+  for (const coral of corals) {
+    coral.grow(time);
+    coral.draw(ctx, time);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+// --- Start on click (needed for Web Audio) ---
+document.getElementById('start-overlay').addEventListener('click', () => {
+  if (started) return;
+  started = true;
+  document.getElementById('start-overlay').classList.add('hidden');
+
+  initAudio();
+  startDrone();
+
+  // Initial colonies
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => spawnColony(), i * 500);
+  }
+
+  // Dark underwater background
+  ctx.fillStyle = 'rgb(6, 10, 16)';
+  ctx.fillRect(0, 0, W, H);
+
+  draw();
+});
+</script>
+</body>
+</html>
