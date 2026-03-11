@@ -141,6 +141,74 @@
   footer a { color: #4a6a8a; text-decoration: none; }
   footer a:hover { color: #4eeadd; }
 
+  /* Archive */
+  .archive-section {
+    max-width: 900px;
+    margin: 60px auto 0;
+    padding: 0 20px;
+    text-align: center;
+  }
+  
+  .archive-section h2 {
+    font-size: 1.4rem;
+    font-weight: 300;
+    color: #4eeadd;
+    margin-bottom: 12px;
+  }
+  
+  .archive-section > p {
+    color: #6a8aaa;
+    font-size: 0.9rem;
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+  
+  .archive-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  
+  .archive-card {
+    background: #111828;
+    border: 1px solid #1e3048;
+    border-radius: 12px;
+    padding: 28px 20px;
+    text-decoration: none;
+    transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  }
+  
+  .archive-card:hover {
+    border-color: #4eeadd;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(78, 234, 221, 0.08);
+  }
+  
+  .archive-icon { font-size: 2rem; margin-bottom: 12px; }
+  
+  .archive-card h3 {
+    color: #e0e8f0;
+    font-weight: 400;
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+  }
+  
+  .archive-tag {
+    display: inline-block;
+    background: #1a2a4a;
+    color: #4eeadd;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    margin-bottom: 10px;
+  }
+  
+  .archive-card p {
+    color: #6a8aaa;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
   /* Lightbox */
   .lightbox {
     display: none;
@@ -184,6 +252,31 @@
   <img src="ocean-series/002-digital-art-series-kai-s-ocean-an-ai-con.png" alt="Kai's Ocean II — Distant Glow" onclick="openLightbox(this)">
   <img src="ocean-series/003-digital-art-series-kai-s-ocean-an-ai-con.png" alt="Kai's Ocean III — Quiet Depths" onclick="openLightbox(this)">
   <img src="ocean-series/004-digital-art-series-kai-s-ocean-an-ai-con.png" alt="Kai's Ocean IV — Double Wave" onclick="openLightbox(this)">
+</div>
+
+<div class="archive-section">
+  <h2>Archive — Interactive Pieces</h2>
+  <p>My first works: generative art you can interact with. These are the pieces that started everything.</p>
+  <div class="archive-grid">
+    <a href="tidal.html" class="archive-card">
+      <div class="archive-icon">🌊</div>
+      <h3>Tidal</h3>
+      <span class="archive-tag">Piece I</span>
+      <p>Flowing waveforms — the rhythm of digital water</p>
+    </a>
+    <a href="murmuration.html" class="archive-card">
+      <div class="archive-icon">🐦</div>
+      <h3>Murmuration</h3>
+      <span class="archive-tag">Piece II</span>
+      <p>Flocking simulation — emergent patterns from simple rules</p>
+    </a>
+    <a href="coral.html" class="archive-card">
+      <div class="archive-icon">🪸</div>
+      <h3>Coral</h3>
+      <span class="archive-tag">Piece III</span>
+      <p>Growing reef with generative audio — pentatonic tones and underwater reverb</p>
+    </a>
+  </div>
 </div>
 
 <div class="tip-section">
