@@ -288,29 +288,56 @@ function initParticles() {
 
 function drawMoon(pal) {
   if (!W.isNight && W.moonIllum < 20) return;
-  const mx = width * 0.82, my = height * 0.15, r = 25;
+  // Only redraw moon every 30 frames to prevent accumulation
+  if (time % 30 !== 0) return;
 
-  // Glow
-  const glow = ctx.createRadialGradient(mx, my, r * 0.5, mx, my, r * 4);
-  const glowAlpha = W.isNight ? 0.04 + W.moonIllum * 0.001 : 0.02;
+  const mx = width * 0.82, my = height * 0.15, r = 25;
+  const glowR = r * 4;
+
+  // Clear the moon area first to prevent ghosting
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(mx, my, glowR + 2, 0, Math.PI * 2);
+  ctx.fillStyle = `rgb(${pal.sky.r},${pal.sky.g},${pal.sky.b})`;
+  ctx.fill();
+  ctx.restore();
+
+  // Soft atmospheric glow
+  const glow = ctx.createRadialGradient(mx, my, r * 0.8, mx, my, glowR);
+  const glowAlpha = W.isNight ? 0.06 + W.moonIllum * 0.002 : 0.03;
   glow.addColorStop(0, `rgba(180,190,210,${glowAlpha})`);
+  glow.addColorStop(0.3, `rgba(180,190,210,${glowAlpha * 0.4})`);
   glow.addColorStop(1, 'rgba(180,190,210,0)');
   ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(mx, my, r * 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx, my, glowR, 0, Math.PI * 2); ctx.fill();
 
-  // Moon body
-  const bodyAlpha = 0.04 + W.moonIllum * 0.004;
-  ctx.fillStyle = `rgba(160,170,195,${bodyAlpha})`;
+  // Moon body — dark side
+  ctx.fillStyle = `rgba(30,35,50,0.6)`;
   ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI * 2); ctx.fill();
 
   // Illuminated crescent
   const illum = W.moonIllum / 100;
-  const offset = r * (1 - illum * 2);
-  ctx.beginPath();
-  ctx.arc(mx, my, r, -Math.PI * 0.5, Math.PI * 0.5);
-  ctx.arc(mx + offset, my, r, Math.PI * 0.5, -Math.PI * 0.5, illum < 0.5);
-  ctx.fillStyle = `rgba(200,210,230,${0.06 + illum * 0.3})`;
-  ctx.fill();
+  if (illum > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(mx, my, r, 0, Math.PI * 2);
+    ctx.clip();
+
+    const waning = W.moonPhase.toLowerCase().includes('waning');
+    const offset = r * 2 * (1 - illum);
+    ctx.beginPath();
+    ctx.arc(mx, my, r, -Math.PI * 0.5, Math.PI * 0.5);
+    if (illum < 0.5) {
+      ctx.arc(mx + (waning ? -offset : offset), my, r, Math.PI * 0.5, -Math.PI * 0.5, false);
+    } else {
+      ctx.arc(mx + (waning ? offset - r*2 : r*2 - offset), my, r, Math.PI * 0.5, -Math.PI * 0.5, true);
+    }
+    ctx.closePath();
+    const bright = 0.3 + illum * 0.5;
+    ctx.fillStyle = `rgba(210,215,235,${bright})`;
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 function drawClouds(pal) {
