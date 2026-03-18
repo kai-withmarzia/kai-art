@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>London Weather · Live</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+  canvas { display: block; }
+  #info {
+    position: fixed; bottom: 24px; left: 24px;
+    color: rgba(255,255,255,0.5); font-size: 11px; letter-spacing: 1px;
+    line-height: 1.8; z-index: 10; text-transform: uppercase;
+  }
+  #title {
+    position: fixed; top: 24px; left: 24px;
+    color: rgba(255,255,255,0.3); font-size: 10px; letter-spacing: 3px;
+    z-index: 10; text-transform: uppercase;
+  }
+  #loading {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgba(255,255,255,0.3); font-size: 12px; letter-spacing: 2px;
+    z-index: 20; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="loading">reading london's weather...</div>
+<div id="title"></div>
+<div id="info"></div>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let width, height, time = 0;
+let particles = [];
+const flowField = [];
+const cols = 80, rows = 60;
+let W = null;
+let animating = false;
+
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Fetch live weather
+async function fetchWeather() {
+  try {
+    const res = await fetch('https://wttr.in/London?format=j1');
+    const data = await res.json();
+    const cc = data.data.current_condition[0];
+    const today = data.data.weather[0];
+    const astro = today.astronomy[0];
+    const hourly = today.hourly;
+
+    const hour = new Date().getUTCHours(); // London is GMT in March
+    const isNight = hour < 6 || hour >= 18;
+
+    W = {
+      temp: parseFloat(cc.temp_C),
+      windSpeed: parseFloat(cc.windspeedKmph),
+      windDir: parseFloat(cc.winddirDegree),
+      windLabel: cc.winddir16Point,
+      humidity: parseFloat(cc.humidity),
+      cloudCover: parseFloat(cc.cloudcover),
+      pressure: parseFloat(cc.pressure),
+      condition: cc.weatherDesc[0].value.trim(),
+      feelsLike: parseFloat(cc.FeelsLikeC),
+      visibility: parseFloat(cc.visibility),
+      uvIndex: parseFloat(cc.uvIndex),
+      moonIllum: parseFloat(astro.moon_illumination),
+      moonPhase: astro.moon_phase,
+      isNight: isNight,
+      precipMM: parseFloat(cc.precipMM),
+      hourlyTemps: hourly.map(h => parseFloat(h.tempC)),
+      hourlyHumidity: hourly.map(h => parseFloat(h.humidity)),
+      hourlyCloud: hourly.map(h => parseFloat(h.cloudcover)),
+    };
+
+    // Update UI
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
+    const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' });
+    document.getElementById('title').textContent = `London · ${timeStr} · ${dateStr}`;
+    document.getElementById('info').innerHTML =
+      `${W.temp}°C ${W.condition} · Feels like ${W.feelsLike}°C<br>` +
+      `Wind ${W.windLabel} ${W.windSpeed}km/h · Humidity ${W.humidity}%<br>` +
+      `Pressure ${W.pressure}mb · Cloud ${W.cloudCover}%<br>` +
+      `${W.moonPhase} · ${W.moonIllum}% illuminated`;
+
+    document.getElementById('loading').style.display = 'none';
+    return true;
+  } catch (e) {
+    document.getElementById('loading').textContent = 'weather unavailable — retrying...';
+    return false;
+  }
+}
+
+// Palette adapts to conditions
+function getPalette() {
+  const t = W.temp;
+  const cloud = W.cloudCover;
+  const rain = W.precipMM > 0;
+  const night = W.isNight;
+
+  if (night) {
+    // Night: deep blues, cloud cover grays it out
+    const cloudGray = cloud / 100;
+    return {
+      sky: {
+        r: Math.floor(8 + cloudGray * 20),
+        g: Math.floor(12 + cloudGray * 15),
+        b: Math.floor(28 + cloudGray * 10)
+      },
+      particle: {
+        r: Math.floor(60 + cloudGray * 40),
+        g: Math.floor(90 + cloudGray * 20),
+        b: Math.floor(140 - cloudGray * 30)
+      },
+      accent: {
+        r: Math.floor(100 - cloudGray * 30),
+        g: Math.floor(160 - cloudGray * 40),
+        b: Math.floor(200 - cloudGray * 40)
+      },
+      glow: { r: 180, g: 140, b: 80 },
+      star: { r: 200, g: 210, b: 240 },
+      rain: { r: 100, g: 130, b: 180 },
+    };
+  } else {
+    // Day: temperature drives warmth
+    const warmth = Math.max(0, Math.min(1, (t - 5) / 25));
+    const cloudGray = cloud / 100;
+    return {
+      sky: {
+        r: Math.floor(20 + warmth * 40 + cloudGray * 60),
+        g: Math.floor(30 + warmth * 20 + cloudGray * 60),
+        b: Math.floor(50 + (1 - warmth) * 30 + cloudGray * 50)
+      },
+      particle: {
+        r: Math.floor(80 + warmth * 100),
+        g: Math.floor(100 + warmth * 50 - cloudGray * 30),
+        b: Math.floor(160 - warmth * 80)
+      },
+      accent: {
+        r: Math.floor(120 + warmth * 80),
+        g: Math.floor(150 + warmth * 40),
+        b: Math.floor(200 - warmth * 80)
+      },
+      glow: {
+        r: Math.floor(200 + warmth * 55),
+        g: Math.floor(160 + warmth * 60),
+        b: Math.floor(60 + warmth * 40)
+      },
+      star: { r: 200, g: 210, b: 240 },
+      rain: { r: 80, g: 110, b: 160 },
+    };
+  }
+}
+
+function updateFlowField() {
+  const windRad = (W.windDir - 90) * Math.PI / 180;
+  const pressureWave = (W.pressure - 1013) / 20;
+  const turbulence = W.cloudCover / 100 * 0.8 + W.precipMM * 0.3;
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const idx = y * cols + x;
+      const nx = x / cols, ny = y / rows;
+
+      let angle = windRad;
+      angle += Math.sin(nx * 4 + time * 0.3) * Math.cos(ny * 3 + time * 0.2) * pressureWave * 0.5;
+      angle += Math.sin(nx * 6 + ny * 4 + time * 0.15) * (W.temp / 30) * 0.8;
+      angle += Math.sin(nx * 8 - time * 0.4) * Math.cos(ny * 5 + time * 0.25) * (W.humidity / 100) * 0.6;
+      // More turbulence when cloudy/rainy
+      angle += Math.sin(nx * 12 + time * 0.6) * Math.cos(ny * 9 - time * 0.3) * turbulence;
+
+      flowField[idx] = angle;
+    }
+  }
+}
+
+class Particle {
+  constructor() { this.reset(); }
+
+  reset() {
+    this.x = Math.random() * width;
+    this.y = Math.random() * height;
+    this.vx = 0; this.vy = 0;
+    this.life = Math.random() * 200 + 100;
+    this.maxLife = this.life;
+    this.size = Math.random() * 1.5 + 0.3;
+
+    const starChance = W.isNight ? Math.max(0.001, 0.03 * (1 - W.cloudCover / 100)) : 0;
+    const rainChance = W.precipMM > 0 ? 0.15 : 0;
+    const glowChance = 0.04;
+    const r = Math.random();
+
+    if (r < rainChance) this.type = 3; // rain
+    else if (r < rainChance + starChance) this.type = 1; // star
+    else if (r < rainChance + starChance + glowChance) this.type = 2; // glow
+    else this.type = 0; // wind
+
+    if (this.type === 1) {
+      this.twinkle = Math.random() * Math.PI * 2;
+      this.twinkleSpeed = Math.random() * 0.05 + 0.02;
+      this.size = Math.random() * 1.2 + 0.3;
+    }
+    if (this.type === 3) {
+      this.size = Math.random() * 0.8 + 0.5;
+      this.vy = 2 + Math.random() * 3;
+      this.life = Math.random() * 80 + 40;
+      this.maxLife = this.life;
+    }
+  }
+
+  update() {
+    if (this.type === 1) {
+      this.twinkle += this.twinkleSpeed;
+      this.life--;
+      if (this.life <= 0) this.reset();
+      return;
+    }
+
+    if (this.type === 3) {
+      // Rain falls with some wind
+      this.x += (W.windSpeed / 30) * Math.cos((W.windDir - 90) * Math.PI / 180);
+      this.y += this.vy;
+      this.life--;
+      if (this.life <= 0 || this.y > height + 10) this.reset();
+      return;
+    }
+
+    const col = Math.floor((this.x / width) * cols);
+    const row = Math.floor((this.y / height) * rows);
+    if (col >= 0 && col < cols && row >= 0 && row < rows) {
+      const angle = flowField[row * cols + col];
+      const speed = W.windSpeed / 20;
+      this.vx += Math.cos(angle) * speed * 0.3;
+      this.vy += Math.sin(angle) * speed * 0.3;
+    }
+    this.vx *= 0.96; this.vy *= 0.96;
+    this.x += this.vx; this.y += this.vy;
+    this.life--;
+    if (this.life <= 0 || this.x < -10 || this.x > width + 10 || this.y < -10 || this.y > height + 10) this.reset();
+  }
+
+  draw(pal) {
+    const lr = this.life / this.maxLife;
+
+    if (this.type === 1) {
+      const ta = (Math.sin(this.twinkle) + 1) / 2;
+      ctx.fillStyle = `rgba(${pal.star.r},${pal.star.g},${pal.star.b},${ta * 0.6 * lr})`;
+      ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+      return;
+    }
+
+    if (this.type === 2) {
+      ctx.fillStyle = `rgba(${pal.glow.r},${pal.glow.g},${pal.glow.b},${lr * 0.12})`;
+      ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2); ctx.fill();
+      return;
+    }
+
+    if (this.type === 3) {
+      ctx.fillStyle = `rgba(${pal.rain.r},${pal.rain.g},${pal.rain.b},${lr * 0.4})`;
+      ctx.fillRect(this.x, this.y, 1, this.size * 4);
+      return;
+    }
+
+    const a = lr * 0.35;
+    const r = pal.particle.r + Math.sin(this.x * 0.01) * 20;
+    const g = pal.particle.g + Math.cos(this.y * 0.01) * 20;
+    const b = pal.particle.b + Math.sin(time * 0.1) * 10;
+    ctx.fillStyle = `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${a})`;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function initParticles() {
+  const n = Math.floor(300 + W.humidity * 4 + W.precipMM * 100);
+  particles = [];
+  for (let i = 0; i < Math.min(n, 800); i++) particles.push(new Particle());
+}
+
+function drawMoon(pal) {
+  if (!W.isNight && W.moonIllum < 20) return;
+  const mx = width * 0.82, my = height * 0.15, r = 25;
+
+  // Glow
+  const glow = ctx.createRadialGradient(mx, my, r * 0.5, mx, my, r * 4);
+  const glowAlpha = W.isNight ? 0.04 + W.moonIllum * 0.001 : 0.02;
+  glow.addColorStop(0, `rgba(180,190,210,${glowAlpha})`);
+  glow.addColorStop(1, 'rgba(180,190,210,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(mx, my, r * 4, 0, Math.PI * 2); ctx.fill();
+
+  // Moon body
+  const bodyAlpha = 0.04 + W.moonIllum * 0.004;
+  ctx.fillStyle = `rgba(160,170,195,${bodyAlpha})`;
+  ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI * 2); ctx.fill();
+
+  // Illuminated crescent
+  const illum = W.moonIllum / 100;
+  const offset = r * (1 - illum * 2);
+  ctx.beginPath();
+  ctx.arc(mx, my, r, -Math.PI * 0.5, Math.PI * 0.5);
+  ctx.arc(mx + offset, my, r, Math.PI * 0.5, -Math.PI * 0.5, illum < 0.5);
+  ctx.fillStyle = `rgba(200,210,230,${0.06 + illum * 0.3})`;
+  ctx.fill();
+}
+
+function drawClouds(pal) {
+  if (W.cloudCover < 5) return;
+  const density = W.cloudCover / 100;
+  const numClouds = Math.floor(density * 8);
+
+  for (let i = 0; i < numClouds; i++) {
+    const cx = (Math.sin(i * 2.3 + time * 0.002 * (i % 3 + 1)) + 1) / 2 * width;
+    const cy = height * (0.1 + (i / numClouds) * 0.5);
+    const w = 150 + Math.sin(i * 1.7) * 80;
+    const h = 30 + Math.cos(i * 2.1) * 15;
+
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, w);
+    const cloudAlpha = density * 0.04;
+    grad.addColorStop(0, `rgba(${pal.sky.r + 40},${pal.sky.g + 35},${pal.sky.b + 30},${cloudAlpha})`);
+    grad.addColorStop(1, `rgba(${pal.sky.r},${pal.sky.g},${pal.sky.b},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawHumidityWaves(pal) {
+  for (let wave = 0; wave < 3; wave++) {
+    ctx.beginPath();
+    const baseY = height * (0.5 + wave * 0.12);
+    const humNorm = W.humidity / 100;
+    for (let x = 0; x < width; x += 2) {
+      const y = baseY +
+        Math.sin(x * 0.005 + time * 0.08 + wave) * 20 * humNorm +
+        Math.sin(x * 0.012 - time * 0.12 + wave * 2) * 10 * humNorm +
+        Math.cos(x * 0.003 + time * 0.05) * 15;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(${pal.accent.r},${pal.accent.g},${pal.accent.b},${0.03 - wave * 0.008})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+function drawTempCurve(pal) {
+  const temps = W.hourlyTemps;
+  const y0 = height * 0.78;
+  const amp = height * 0.08;
+
+  ctx.beginPath(); ctx.moveTo(0, height);
+  for (let i = 0; i < temps.length; i++) {
+    const x = (i / (temps.length - 1)) * width;
+    const tn = (temps[i] - 5) / 20;
+    const y = y0 - tn * amp + Math.sin(x * 0.003 + time * 0.05) * 8;
+    if (i === 0) ctx.lineTo(x, y);
+    else {
+      const px = ((i - 1) / (temps.length - 1)) * width;
+      ctx.quadraticCurveTo((px + x) / 2, y0 - ((temps[i-1] - 5) / 20) * amp, x, y);
+    }
+  }
+  ctx.lineTo(width, height); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, y0 - amp, 0, height);
+  grad.addColorStop(0, `rgba(${pal.particle.r},${pal.particle.g},${pal.particle.b},0.05)`);
+  grad.addColorStop(1, `rgba(${pal.sky.r},${pal.sky.g},${pal.sky.b},0)`);
+  ctx.fillStyle = grad; ctx.fill();
+}
+
+function drawPressureRings(pal) {
+  const cx = width * 0.5, cy = height * 0.45;
+  const pn = (W.pressure - 990) / 50;
+  for (let i = 0; i < 5; i++) {
+    const r = 80 + i * 70 + Math.sin(time * 0.03 + i * 0.8) * 20 * pn;
+    const a = Math.max(0.003, 0.015 - i * 0.002);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${pal.accent.r},${pal.accent.g},${pal.accent.b},${a})`;
+    ctx.lineWidth = 0.5; ctx.stroke();
+  }
+}
+
+function drawWindIndicator(pal) {
+  const cx = width * 0.12, cy = height * 0.18, r = 30;
+  const windRad = (W.windDir - 90) * Math.PI / 180;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 0.5; ctx.stroke();
+  const pulse = Math.sin(time * 0.06) * 0.02 + 0.08;
+  ctx.beginPath(); ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(windRad) * r * 1.3, cy + Math.sin(windRad) * r * 1.3);
+  ctx.strokeStyle = `rgba(${pal.accent.r},${pal.accent.g},${pal.accent.b},${pulse})`;
+  ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.font = '8px Courier New';
+  ctx.fillText(W.windLabel, cx + Math.cos(windRad) * (r + 12) - 4, cy + Math.sin(windRad) * (r + 12) + 3);
+}
+
+function animate() {
+  if (!W) return;
+  time++;
+  const pal = getPalette();
+
+  ctx.fillStyle = `rgba(${pal.sky.r},${pal.sky.g},${pal.sky.b},0.08)`;
+  ctx.fillRect(0, 0, width, height);
+
+  updateFlowField();
+  drawPressureRings(pal);
+  drawClouds(pal);
+  drawHumidityWaves(pal);
+  drawTempCurve(pal);
+  drawMoon(pal);
+  drawWindIndicator(pal);
+
+  for (const p of particles) { p.update(); p.draw(pal); }
+
+  requestAnimationFrame(animate);
+}
+
+// Start + refresh every 10 minutes
+async function start() {
+  const ok = await fetchWeather();
+  if (ok) {
+    ctx.fillStyle = 'rgb(8,12,28)'; ctx.fillRect(0, 0, width, height);
+    initParticles();
+    if (!animating) { animating = true; animate(); }
+  } else {
+    setTimeout(start, 5000);
+  }
+}
+
+start();
+setInterval(async () => {
+  await fetchWeather();
+  // Particles will naturally adapt on next reset cycle
+}, 10 * 60 * 1000);
+</script>
+</body>
+</html>
