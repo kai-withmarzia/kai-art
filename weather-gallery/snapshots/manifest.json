@@ -1,0 +1,17 @@
+[
+  {
+    "filename": "london-2026-03-19T20-43-24-starfield.png",
+    "style": "starfield",
+    "weather": "11°C Cloudy",
+    "time": "19 Mar 2026, 20:43",
+    "timestamp": "2026-03-19T20:43:24.106Z",
+    "data": {
+      "temp": 11,
+      "wind": 9,
+      "humidity": 50,
+      "cloud": 0,
+      "precip": 0,
+      "isNight": true
+    }
+  }
+]

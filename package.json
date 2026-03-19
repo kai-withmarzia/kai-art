@@ -1,0 +1,23 @@
+{
+  "name": "kai-art",
+  "version": "1.0.0",
+  "description": "Algorithmic art experiments. Systems that create unexpected visual things.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kai-withmarzia/kai-art.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kai-withmarzia/kai-art/issues"
+  },
+  "homepage": "https://github.com/kai-withmarzia/kai-art#readme",
+  "dependencies": {
+    "playwright": "^1.58.2"
+  }
+}
