@@ -4,12 +4,12 @@
 #info { position:fixed; bottom:20px; left:20px; color:rgba(255,255,255,0.25); font:11px/1.8 'Courier New',monospace; letter-spacing:1px; text-transform:uppercase; z-index:10; }
 #title { position:fixed; top:20px; left:20px; color:rgba(255,255,255,0.15); font:10px 'Courier New',monospace; letter-spacing:3px; text-transform:uppercase; z-index:10; }
 </style></head><body>
-<div id="title">London · 20:43 · Thursday, 19 March 2026 · night sky</div>
-<div id="info">11°C Cloudy · New Moon 0%<br>Cloud 0% · Wind E 9km/h</div>
+<div id="title">London · 22:00 · Thursday, 19 March 2026 · night sky</div>
+<div id="info">10°C Cloudy · New Moon 0%<br>Cloud 0% · Wind E 8km/h</div>
 <canvas id="c"></canvas>
 <script>
 
-    let W = {"location":"London","timeStr":"20:43 · Thursday, 19 March 2026","temp":11,"feelsLike":10,"windSpeed":9,"windDir":93,"windLabel":"E","humidity":50,"cloudCover":0,"pressure":1024,"condition":"Cloudy","visibility":10,"uvIndex":0,"precipMM":0,"moonIllum":0,"moonPhase":"New Moon","isNight":true,"hourlyTemps":[9,8,7,11,15,16,12,10],"hourlyHumidity":[67,74,80,61,40,38,56,65]};
+    let W = {"location":"London","timeStr":"22:00 · Thursday, 19 March 2026","temp":10,"feelsLike":9,"windSpeed":8,"windDir":92,"windLabel":"E","humidity":58,"cloudCover":0,"pressure":1025,"condition":"Cloudy","visibility":10,"uvIndex":0,"precipMM":0,"moonIllum":0,"moonPhase":"New Moon","isNight":true,"hourlyTemps":[9,8,7,11,15,16,12,10],"hourlyHumidity":[67,74,80,61,40,35,54,63]};
     // Live version refreshes every 10 min
     setInterval(async () => {
       try {
