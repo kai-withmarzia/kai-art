@@ -1,5 +1,20 @@
 [
   {
+    "filename": "london-2026-03-20T06-00-07-flow-fields.png",
+    "style": "flow-fields",
+    "weather": "4°C Clear",
+    "time": "20 Mar 2026, 06:00",
+    "timestamp": "2026-03-20T06:00:07.042Z",
+    "data": {
+      "temp": 4,
+      "wind": 6,
+      "humidity": 81,
+      "cloud": 0,
+      "precip": 0,
+      "isNight": false
+    }
+  },
+  {
     "filename": "london-2026-03-19T22-00-08-starfield.png",
     "style": "starfield",
     "weather": "10°C Cloudy",

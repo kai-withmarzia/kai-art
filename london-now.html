@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<style>* { margin:0; padding:0; } body { background:#030308; overflow:hidden; } canvas { display:block; }
-#info { position:fixed; bottom:20px; left:20px; color:rgba(255,255,255,0.25); font:11px/1.8 'Courier New',monospace; letter-spacing:1px; text-transform:uppercase; z-index:10; }
-#title { position:fixed; top:20px; left:20px; color:rgba(255,255,255,0.15); font:10px 'Courier New',monospace; letter-spacing:3px; text-transform:uppercase; z-index:10; }
+<style>* { margin:0; padding:0; } body { background:#000; overflow:hidden; } canvas { display:block; }
+#info { position:fixed; bottom:20px; left:20px; color:rgba(255,255,255,0.35); font:11px/1.8 'Courier New',monospace; letter-spacing:1px; text-transform:uppercase; z-index:10; }
+#title { position:fixed; top:20px; left:20px; color:rgba(255,255,255,0.2); font:10px 'Courier New',monospace; letter-spacing:3px; text-transform:uppercase; z-index:10; }
 </style></head><body>
-<div id="title">London · 22:00 · Thursday, 19 March 2026 · night sky</div>
-<div id="info">10°C Cloudy · New Moon 0%<br>Cloud 0% · Wind E 8km/h</div>
+<div id="title">London · 06:00 · Friday, 20 March 2026</div>
+<div id="info">4°C Clear · Wind NE 6km/h<br>Humidity 81% · Pressure 1023mb · Cloud 0%</div>
 <canvas id="c"></canvas>
 <script>
 
-    let W = {"location":"London","timeStr":"22:00 · Thursday, 19 March 2026","temp":10,"feelsLike":9,"windSpeed":8,"windDir":92,"windLabel":"E","humidity":58,"cloudCover":0,"pressure":1025,"condition":"Cloudy","visibility":10,"uvIndex":0,"precipMM":0,"moonIllum":0,"moonPhase":"New Moon","isNight":true,"hourlyTemps":[9,8,7,11,15,16,12,10],"hourlyHumidity":[67,74,80,61,40,35,54,63]};
+    let W = {"location":"London","timeStr":"06:00 · Friday, 20 March 2026","temp":4,"feelsLike":3,"windSpeed":6,"windDir":40,"windLabel":"NE","humidity":81,"cloudCover":0,"pressure":1023,"condition":"Clear","visibility":10,"uvIndex":0,"precipMM":0,"moonIllum":1,"moonPhase":"Waxing Crescent","isNight":false,"hourlyTemps":[9,7,6,10,13,14,11,8],"hourlyHumidity":[64,66,68,55,44,51,67,67]};
     // Live version refreshes every 10 min
     setInterval(async () => {
       try {
@@ -28,97 +28,82 @@ const ctx = canvas.getContext('2d');
 const width = canvas.width = 1920;
 const height = canvas.height = 1080;
 let time = 0;
+const cols = 80, rows = 60;
+const flowField = new Array(cols * rows);
+const particles = [];
 
-const clarity = Math.max(0.1, 1 - W.cloudCover / 100);
-const stars = [];
-const numStars = Math.floor(clarity * 500 + 100);
+const night = W.isNight;
+const warmth = Math.max(0, Math.min(1, (W.temp - 5) / 25));
+const cloudGray = W.cloudCover / 100;
 
-for (let i = 0; i < numStars; i++) {
-  stars.push({
-    x: Math.random() * width, y: Math.random() * height * 0.85,
-    size: Math.random() * 2 + 0.2,
-    brightness: Math.random() * 0.6 + 0.2,
-    twinkleSpeed: Math.random() * 0.04 + 0.01,
-    twinklePhase: Math.random() * Math.PI * 2,
-    hue: Math.random() < 0.1 ? (Math.random() < 0.5 ? 'warm' : 'cool') : 'white',
-  });
+const pal = night ? {
+  sky: { r: 8 + cloudGray * 20, g: 12 + cloudGray * 15, b: 28 + cloudGray * 10 },
+  particle: { r: 60 + cloudGray * 40, g: 90 + cloudGray * 20, b: 140 - cloudGray * 30 },
+  accent: { r: 100 - cloudGray * 30, g: 160 - cloudGray * 40, b: 200 - cloudGray * 40 }
+} : {
+  sky: { r: 20 + warmth * 40 + cloudGray * 60, g: 30 + warmth * 20 + cloudGray * 60, b: 50 + (1-warmth) * 30 + cloudGray * 50 },
+  particle: { r: 80 + warmth * 100, g: 100 + warmth * 50 - cloudGray * 30, b: 160 - warmth * 80 },
+  accent: { r: 120 + warmth * 80, g: 150 + warmth * 40, b: 200 - warmth * 80 }
+};
+
+class Particle {
+  constructor() { this.reset(); }
+  reset() {
+    this.x = Math.random() * width; this.y = Math.random() * height;
+    this.vx = 0; this.vy = 0;
+    this.life = Math.random() * 200 + 100; this.maxLife = this.life;
+    this.size = Math.random() * 1.5 + 0.3;
+  }
+  update() {
+    const col = Math.floor((this.x / width) * cols);
+    const row = Math.floor((this.y / height) * rows);
+    if (col >= 0 && col < cols && row >= 0 && row < rows) {
+      const angle = flowField[row * cols + col];
+      const speed = W.windSpeed / 20;
+      this.vx += Math.cos(angle) * speed * 0.3;
+      this.vy += Math.sin(angle) * speed * 0.3;
+    }
+    this.vx *= 0.96; this.vy *= 0.96;
+    this.x += this.vx; this.y += this.vy;
+    this.life--;
+    if (this.life <= 0 || this.x < -10 || this.x > width + 10 || this.y < -10 || this.y > height + 10) this.reset();
+  }
+  draw() {
+    const lr = this.life / this.maxLife;
+    const a = lr * 0.35;
+    const r = pal.particle.r + Math.sin(this.x * 0.01) * 20;
+    const g = pal.particle.g + Math.cos(this.y * 0.01) * 20;
+    const b = pal.particle.b + Math.sin(time * 0.1) * 10;
+    ctx.fillStyle = `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${a})`;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
-// Nebula blobs
-const nebulae = [];
-for (let i = 0; i < 4; i++) {
-  nebulae.push({
-    x: width * (0.2 + Math.random() * 0.6),
-    y: height * (0.15 + Math.random() * 0.5),
-    rx: 100 + Math.random() * 200,
-    ry: 60 + Math.random() * 120,
-    r: Math.random() * 30 + 20,
-    g: Math.random() * 20 + 10,
-    b: Math.random() * 60 + 40,
-    opacity: 0.008 + Math.random() * 0.012 * clarity,
-    rotation: Math.random() * Math.PI,
-  });
+function updateFlow() {
+  const windRad = (W.windDir - 90) * Math.PI / 180;
+  const pWave = (W.pressure - 1013) / 20;
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const nx = x / cols, ny = y / rows;
+    let a = windRad;
+    a += Math.sin(nx * 4 + time * 0.3) * Math.cos(ny * 3 + time * 0.2) * pWave * 0.5;
+    a += Math.sin(nx * 6 + ny * 4 + time * 0.15) * (W.temp / 30) * 0.8;
+    a += Math.sin(nx * 8 - time * 0.4) * Math.cos(ny * 5 + time * 0.25) * (W.humidity / 100) * 0.6;
+    flowField[y * cols + x] = a;
+  }
 }
 
-// Initial sky gradient
-const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
-skyGrad.addColorStop(0, 'rgb(3,3,12)');
-skyGrad.addColorStop(0.6, 'rgb(5,5,18)');
-skyGrad.addColorStop(1, 'rgb(12,10,20)');
-ctx.fillStyle = skyGrad;
+const n = Math.min(800, 300 + W.humidity * 4);
+for (let i = 0; i < n; i++) particles.push(new Particle());
+
+ctx.fillStyle = `rgb(${Math.floor(pal.sky.r)},${Math.floor(pal.sky.g)},${Math.floor(pal.sky.b)})`;
 ctx.fillRect(0, 0, width, height);
-
-// Draw nebulae once
-for (const n of nebulae) {
-  ctx.save();
-  ctx.translate(n.x, n.y);
-  ctx.rotate(n.rotation);
-  const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, n.rx);
-  grad.addColorStop(0, `rgba(${n.r},${n.g},${n.b},${n.opacity})`);
-  grad.addColorStop(0.6, `rgba(${n.r},${n.g},${n.b},${n.opacity * 0.4})`);
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.ellipse(0, 0, n.rx, n.ry, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-}
-
-// Moon
-const mx = width * 0.78, my = height * 0.12, mr = 22;
-if (W.moonIllum > 5) {
-  const glow = ctx.createRadialGradient(mx, my, mr * 0.5, mx, my, mr * 5);
-  glow.addColorStop(0, `rgba(180,190,220,${0.02 + W.moonIllum * 0.002})`);
-  glow.addColorStop(1, 'rgba(180,190,220,0)');
-  ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(mx, my, mr * 5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = `rgba(200,210,230,${0.1 + W.moonIllum * 0.005})`;
-  ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
-}
 
 function frame() {
   time++;
-  // Very subtle fade — keep trails
-  ctx.fillStyle = 'rgba(3,3,10,0.02)';
+  ctx.fillStyle = `rgba(${Math.floor(pal.sky.r)},${Math.floor(pal.sky.g)},${Math.floor(pal.sky.b)},0.06)`;
   ctx.fillRect(0, 0, width, height);
-
-  for (const s of stars) {
-    s.twinklePhase += s.twinkleSpeed;
-    const twinkle = (Math.sin(s.twinklePhase) + 1) / 2;
-    const bright = s.brightness * (0.4 + twinkle * 0.6) * clarity;
-
-    let r = 200, g = 210, b = 240;
-    if (s.hue === 'warm') { r = 240; g = 190; b = 150; }
-    if (s.hue === 'cool') { r = 150; g = 180; b = 255; }
-
-    ctx.fillStyle = `rgba(${r},${g},${b},${bright})`;
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.size * (0.7 + twinkle * 0.3), 0, Math.PI * 2); ctx.fill();
-
-    // Subtle glow on bright stars
-    if (s.size > 1.2 && bright > 0.4) {
-      ctx.fillStyle = `rgba(${r},${g},${b},${bright * 0.05})`;
-      ctx.beginPath(); ctx.arc(s.x, s.y, s.size * 4, 0, Math.PI * 2); ctx.fill();
-    }
-  }
-
+  updateFlow();
+  for (const p of particles) { p.update(); p.draw(); }
   requestAnimationFrame(frame);
 }
 frame();
