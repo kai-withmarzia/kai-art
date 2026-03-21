@@ -68,5 +68,15 @@
     "wind": "10",
     "style": "stained glass",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: sunny, 14°C. Style: stained glass window design. Mood: golden hour, warm amber and violet. Temperature feel: comfortable, balanced palette. Atmosphere: dry, sharp, high-definition edges. Movement: stillness, meditation, calm geometry. Wind: 10 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-03-21T22-00-24.png",
+    "date": "2026-03-21 22:00",
+    "weather": "Clear",
+    "temp": "5",
+    "humidity": "65",
+    "wind": "7",
+    "style": "stained glass",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: clear, 5°C. Style: stained glass window design. Mood: night, deep indigo and electric highlights. Temperature feel: cool, muted tones, gentle. Atmosphere: soft edges, gentle atmosphere. Movement: stillness, meditation, calm geometry. Wind: 7 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
