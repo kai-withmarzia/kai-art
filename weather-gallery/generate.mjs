@@ -1,275 +1,259 @@
 #!/usr/bin/env node
 /**
- * Weather Art Generator
- * 
- * Fetches London weather, picks a visual style, renders it with Playwright,
- * saves a timestamped snapshot, and updates the gallery.
- * 
- * Usage: node generate.mjs [--push]
- *   --push   Also git commit and push to GitHub Pages
+ * Weather-driven generative art generator
+ * Fetches London weather → crafts an art prompt → generates image via OpenAI
+ * Outputs to ./output/ with an index.html gallery
  */
 
-import { chromium } from 'playwright';
-import { writeFileSync, readFileSync, mkdirSync, readdirSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { flowFields, rainStreaks, thermalGradient, fogLayers, starfield, chooseStyle } from './styles.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SNAPSHOTS_DIR = join(__dirname, 'snapshots');
-const KAI_ART_DIR = join(__dirname, '..');
+const OUTPUT_DIR = join(__dirname, 'output');
+const GALLERY_PATH = join(__dirname, 'index.html');
+const MANIFEST_PATH = join(OUTPUT_DIR, 'manifest.json');
 
+// Ensure output dir exists
+mkdirSync(OUTPUT_DIR, { recursive: true });
+
+// --- Weather fetching ---
 async function fetchWeather() {
   const res = await fetch('https://wttr.in/London?format=j1');
+  if (!res.ok) throw new Error(`Weather API returned ${res.status}`);
   const data = await res.json();
-  const cc = data.data.current_condition[0];
-  const today = data.data.weather[0];
-  const astro = today.astronomy[0];
-  const hourly = today.hourly;
-
-  const now = new Date();
-  const hour = now.getUTCHours(); // London is GMT in March
-  const isNight = hour < 6 || hour >= 18;
-
-  const timeStr = now.toLocaleTimeString('en-GB', {
-    hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London'
-  });
-  const dateStr = now.toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London'
-  });
-
+  
+  // Defensive: handle various response shapes
+  const current = data.current_condition?.[0] || data.currentCondition?.[0];
+  if (!current) {
+    throw new Error(`Unexpected weather response shape. Keys: ${Object.keys(data).join(', ')}`);
+  }
+  
   return {
-    location: 'London',
-    timeStr: `${timeStr} · ${dateStr}`,
-    temp: parseFloat(cc.temp_C),
-    feelsLike: parseFloat(cc.FeelsLikeC),
-    windSpeed: parseFloat(cc.windspeedKmph),
-    windDir: parseFloat(cc.winddirDegree),
-    windLabel: cc.winddir16Point,
-    humidity: parseFloat(cc.humidity),
-    cloudCover: parseFloat(cc.cloudcover),
-    pressure: parseFloat(cc.pressure),
-    condition: cc.weatherDesc[0].value.trim(),
-    visibility: parseFloat(cc.visibility),
-    uvIndex: parseFloat(cc.uvIndex),
-    precipMM: parseFloat(cc.precipMM),
-    moonIllum: parseFloat(astro.moon_illumination),
-    moonPhase: astro.moon_phase,
-    isNight,
-    hourlyTemps: hourly.map(h => parseFloat(h.tempC)),
-    hourlyHumidity: hourly.map(h => parseFloat(h.humidity)),
+    temp_C: current.temp_C || current.tempC || '15',
+    weatherDesc: current.weatherDesc?.[0]?.value || current.weatherDescription || 'Partly cloudy',
+    humidity: current.humidity || '70',
+    windspeedKmph: current.windspeedKmph || '10',
+    cloudcover: current.cloudcover || '50',
+    uvIndex: current.uvIndex || '3',
+    visibility: current.visibility || '10',
+    precipMM: current.precipMM || '0.0',
   };
 }
 
-async function renderToImage(html, outputPath) {
-  const browser = await chromium.launch({ args: ['--no-sandbox'] });
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+// --- Prompt crafting ---
+function craftPrompt(weather) {
+  const hour = new Date().getUTCHours();
+  
+  // Time of day mood
+  let timeMood;
+  if (hour >= 5 && hour < 9) timeMood = 'dawn, soft golden light breaking through';
+  else if (hour >= 9 && hour < 12) timeMood = 'bright morning, crisp and alert';
+  else if (hour >= 12 && hour < 15) timeMood = 'midday, high contrast and vivid';
+  else if (hour >= 15 && hour < 18) timeMood = 'warm afternoon, long shadows';
+  else if (hour >= 18 && hour < 21) timeMood = 'golden hour, warm amber and violet';
+  else timeMood = 'night, deep indigo and electric highlights';
 
-  await page.setContent(html, { waitUntil: 'domcontentloaded' });
+  // Weather mood
+  const temp = parseInt(weather.temp_C);
+  let tempMood = temp < 5 ? 'icy, crystalline, sharp edges' :
+                 temp < 12 ? 'cool, muted tones, gentle' :
+                 temp < 20 ? 'comfortable, balanced palette' :
+                 temp < 28 ? 'warm, saturated, lush' :
+                 'scorching, intense, heat-haze distortion';
 
-  // Wait for animation to complete
-  await page.waitForFunction(() => window.__RENDER_DONE === true, { timeout: 30000 });
-  // Extra beat for final frame
-  await page.waitForTimeout(500);
+  const humidity = parseInt(weather.humidity);
+  let humidityMood = humidity > 80 ? 'misty, diffused, watercolor bleeds' :
+                     humidity > 50 ? 'soft edges, gentle atmosphere' :
+                     'dry, sharp, high-definition edges';
 
-  await page.screenshot({ path: outputPath, type: 'png' });
-  await browser.close();
-  console.log(`  → saved: ${outputPath}`);
+  const wind = parseInt(weather.windspeedKmph);
+  let movement = wind > 40 ? 'violent motion, swirling chaos' :
+                 wind > 20 ? 'flowing movement, dynamic curves' :
+                 wind > 10 ? 'gentle movement, swaying forms' :
+                 'stillness, meditation, calm geometry';
+
+  // Art style rotation based on day of year
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  const styles = [
+    'abstract expressionism with bold brushstrokes',
+    'Japanese ink wash painting (sumi-e)',
+    'art nouveau with organic flowing lines',
+    'geometric constructivism',
+    'impressionist landscape',
+    'cyberpunk digital art with neon accents',
+    'watercolor botanical illustration',
+    'brutalist architecture rendered in charcoal',
+    'surrealist dreamscape à la Dalí',
+    'minimalist Scandinavian design',
+    'stained glass window design',
+    'retro-futurism 1960s space age',
+    'ukiyo-e woodblock print style',
+    'art deco poster design',
+  ];
+  const style = styles[dayOfYear % styles.length];
+
+  const prompt = `Create an abstract artwork inspired by London's current atmosphere: ${weather.weatherDesc.toLowerCase()}, ${weather.temp_C}°C. Style: ${style}. Mood: ${timeMood}. Temperature feel: ${tempMood}. Atmosphere: ${humidityMood}. Movement: ${movement}. Wind: ${weather.windspeedKmph} km/h, cloud cover ${weather.cloudcover}%. No text or words in the image. Square format, museum-quality composition.`;
+
+  return prompt;
 }
 
-function buildGalleryPage(snapshots) {
-  const cards = snapshots.map(s => `
+// --- Image generation via OpenAI ---
+async function generateImage(prompt) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+
+  const res = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-image-1',
+      prompt,
+      n: 1,
+      size: '1024x1024',
+      quality: 'medium',
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`OpenAI API error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  // gpt-image-1 returns b64_json by default
+  const b64 = data.data?.[0]?.b64_json;
+  const url = data.data?.[0]?.url;
+  
+  return { b64, url };
+}
+
+// --- Gallery builder ---
+function buildGallery() {
+  // Load manifest
+  let manifest = [];
+  if (existsSync(MANIFEST_PATH)) {
+    try { manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')); } catch {}
+  }
+
+  const entries = manifest.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const cards = entries.map(e => `
     <div class="card">
-      <a href="snapshots/${s.filename}" target="_blank">
-        <img src="snapshots/${s.filename}" alt="${s.style} — ${s.weather}" loading="lazy">
-      </a>
+      <img src="output/${e.filename}" alt="${e.weather}" loading="lazy" />
       <div class="meta">
-        <span class="style">${s.style}</span>
-        <span class="weather">${s.weather}</span>
-        <span class="time">${s.time}</span>
+        <span class="date">${e.date}</span>
+        <span class="weather">${e.weather} · ${e.temp}°C</span>
+        <span class="style">${e.style || ''}</span>
       </div>
     </div>`).join('\n');
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>London Weather Gallery — Kai's Art</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>London Weather Art Gallery</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #08090f; color: #c0c8d8; font-family: 'Inter', sans-serif; min-height: 100vh; }
-  
-  header {
-    text-align: center; padding: 60px 20px 30px;
-    background: linear-gradient(180deg, #0a1020 0%, #08090f 100%);
-  }
-  header h1 { font-size: 2.2rem; font-weight: 300; letter-spacing: 0.08em; color: #4eeadd; margin-bottom: 8px; }
-  header p { font-size: 0.95rem; color: #5a7a9a; font-weight: 300; max-width: 500px; margin: 0 auto; line-height: 1.6; }
-  
-  .gallery {
-    max-width: 1400px; margin: 0 auto; padding: 30px 20px 60px;
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 24px;
-  }
-  
-  .card {
-    background: #0e1118; border-radius: 12px; overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.04);
-    transition: transform 0.2s, border-color 0.2s;
-  }
-  .card:hover { transform: translateY(-2px); border-color: rgba(78,234,221,0.15); }
-  .card a { display: block; }
-  .card img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
-  .card .meta { padding: 14px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .card .style {
-    background: rgba(78,234,221,0.1); color: #4eeadd; padding: 3px 10px;
-    border-radius: 20px; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;
-  }
-  .card .weather { font-size: 0.85rem; color: #8a9ab0; }
-  .card .time { font-size: 0.75rem; color: #5a6a7a; margin-left: auto; }
-  
-  footer { text-align: center; padding: 30px; color: #3a4a5a; font-size: 0.8rem; }
-  footer a { color: #4eeadd; text-decoration: none; }
-  
-  @media (max-width: 500px) { .gallery { grid-template-columns: 1fr; } }
+  body { background: #0a0a0a; color: #e0e0e0; font-family: 'Inter', system-ui, sans-serif; }
+  header { text-align: center; padding: 3rem 1rem 2rem; }
+  header h1 { font-size: 2rem; font-weight: 300; letter-spacing: 0.1em; color: #fff; }
+  header p { color: #888; margin-top: 0.5rem; font-size: 0.9rem; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; padding: 0 2rem 4rem; max-width: 1400px; margin: 0 auto; }
+  .card { background: #141414; border-radius: 12px; overflow: hidden; transition: transform 0.2s; }
+  .card:hover { transform: scale(1.02); }
+  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .meta { padding: 1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .date { font-size: 0.8rem; color: #666; }
+  .weather { font-size: 0.9rem; }
+  .style { font-size: 0.8rem; color: #555; font-style: italic; }
+  .empty { text-align: center; padding: 4rem; color: #444; }
 </style>
 </head>
 <body>
 <header>
-  <h1>🌊 London Weather Gallery</h1>
-  <p>Generative art that breathes with London's weather. Each piece is automatically created from live conditions — temperature, wind, rain, clouds, and time of day shape the visuals.</p>
+  <h1>🌊 London Weather Art</h1>
+  <p>AI-generated art driven by real-time London weather · ${entries.length} pieces</p>
 </header>
 <div class="gallery">
-${cards}
+  ${cards || '<div class="empty">No art generated yet. Check back soon.</div>'}
 </div>
-<footer>
-  Art by Kai · Generated every few hours from live weather data · <a href="../index.html">← Back to Kai's Ocean</a>
-</footer>
 </body>
 </html>`;
+
+  writeFileSync(GALLERY_PATH, html);
 }
 
-function loadManifest() {
-  const path = join(SNAPSHOTS_DIR, 'manifest.json');
-  if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf-8'));
-  return [];
-}
-
-function saveManifest(entries) {
-  writeFileSync(join(SNAPSHOTS_DIR, 'manifest.json'), JSON.stringify(entries, null, 2));
-}
-
+// --- Main ---
 async function main() {
-  const shouldPush = process.argv.includes('--push');
-
-  console.log('🌤️  Fetching London weather...');
+  const push = process.argv.includes('--push');
+  
+  console.log('Fetching London weather...');
   const weather = await fetchWeather();
-  console.log(`  ${weather.temp}°C, ${weather.condition}, wind ${weather.windSpeed}km/h, cloud ${weather.cloudCover}%`);
-  console.log(`  Night: ${weather.isNight}, precip: ${weather.precipMM}mm, visibility: ${weather.visibility}km`);
+  console.log(`Weather: ${weather.weatherDesc}, ${weather.temp_C}°C, humidity ${weather.humidity}%, wind ${weather.windspeedKmph} km/h`);
 
-  const style = chooseStyle(weather);
-  console.log(`\n🎨 Selected style: ${style.name}`);
+  console.log('Crafting prompt...');
+  const prompt = craftPrompt(weather);
+  console.log(`Prompt: ${prompt.slice(0, 120)}...`);
 
-  const html = style.fn(weather);
+  console.log('Generating image...');
+  const { b64, url } = await generateImage(prompt);
+  
+  // Save image
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `weather-art-${timestamp}.png`;
+  const filepath = join(OUTPUT_DIR, filename);
 
-  // Timestamp for filename
-  const now = new Date();
-  const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const filename = `london-${ts}-${style.name}.png`;
-  const outputPath = join(SNAPSHOTS_DIR, filename);
-
-  console.log('\n🖼️  Rendering...');
-  await renderToImage(html, outputPath);
-
-  // Also save the HTML for the live version
-  const liveHtmlPath = join(KAI_ART_DIR, 'london-now.html');
-  // For the live version, swap the embedded data with a fetch
-  const liveHtml = html
-    .replace(`const W = ${JSON.stringify(weather)};`, `
-    let W = ${JSON.stringify(weather)};
-    // Live version refreshes every 10 min
-    setInterval(async () => {
-      try {
-        const res = await fetch('https://wttr.in/London?format=j1');
-        const data = await res.json();
-        const cc = data.data.current_condition[0];
-        W.temp = parseFloat(cc.temp_C);
-        W.windSpeed = parseFloat(cc.windspeedKmph);
-        W.humidity = parseFloat(cc.humidity);
-        W.cloudCover = parseFloat(cc.cloudcover);
-        W.condition = cc.weatherDesc[0].value.trim();
-      } catch(e) {}
-    }, 600000);`)
-    .replace(
-      /if \(time < \d+\) requestAnimationFrame\(\w+\);\s*else window\.__RENDER_DONE = true;/g,
-      'requestAnimationFrame(frame);'  // Live version runs forever
-    );
-  writeFileSync(liveHtmlPath, liveHtml);
-  console.log(`  → updated live: ${liveHtmlPath}`);
+  if (b64) {
+    writeFileSync(filepath, Buffer.from(b64, 'base64'));
+  } else if (url) {
+    const imgRes = await fetch(url);
+    const buf = Buffer.from(await imgRes.arrayBuffer());
+    writeFileSync(filepath, buf);
+  } else {
+    throw new Error('No image data in API response');
+  }
+  console.log(`Saved: ${filepath}`);
 
   // Update manifest
-  const manifest = loadManifest();
-  manifest.unshift({
+  let manifest = [];
+  if (existsSync(MANIFEST_PATH)) {
+    try { manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')); } catch {}
+  }
+  
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  const styles = [
+    'abstract expressionism', 'Japanese sumi-e', 'art nouveau', 'geometric constructivism',
+    'impressionist', 'cyberpunk digital', 'watercolor botanical', 'brutalist charcoal',
+    'surrealist dreamscape', 'minimalist Scandinavian', 'stained glass', 'retro-futurism',
+    'ukiyo-e woodblock', 'art deco poster',
+  ];
+
+  manifest.push({
     filename,
-    style: style.name,
-    weather: `${weather.temp}°C ${weather.condition}`,
-    time: now.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'medium', timeStyle: 'short' }),
-    timestamp: now.toISOString(),
-    data: {
-      temp: weather.temp,
-      wind: weather.windSpeed,
-      humidity: weather.humidity,
-      cloud: weather.cloudCover,
-      precip: weather.precipMM,
-      isNight: weather.isNight,
-    }
+    date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    weather: weather.weatherDesc,
+    temp: weather.temp_C,
+    humidity: weather.humidity,
+    wind: weather.windspeedKmph,
+    style: styles[dayOfYear % styles.length],
+    prompt,
   });
-  // Keep last 100 snapshots
-  if (manifest.length > 100) manifest.length = 100;
-  saveManifest(manifest);
 
-  // Build gallery page
-  const galleryHtml = buildGalleryPage(manifest);
-  writeFileSync(join(__dirname, 'index.html'), galleryHtml);
-  console.log('  → updated gallery: weather-gallery/index.html');
+  writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
 
-  // Update main kai-art index to link to gallery
-  updateMainIndex();
+  // Rebuild gallery
+  buildGallery();
+  console.log('Gallery updated.');
 
-  if (shouldPush) {
-    console.log('\n📤 Pushing to GitHub...');
-    const { execSync } = await import('child_process');
-    const opts = { cwd: KAI_ART_DIR, stdio: 'inherit' };
-    execSync('git add -A', opts);
-    execSync(`git commit -m "🎨 Weather art: ${style.name} — ${weather.temp}°C ${weather.condition}"`, opts);
-    execSync('git push', opts);
-    console.log('  → pushed!');
-  }
-
-  console.log('\n✅ Done!');
+  console.log('Done! ✨');
 }
 
-function updateMainIndex() {
-  const indexPath = join(KAI_ART_DIR, 'index.html');
-  if (!existsSync(indexPath)) return;
-
-  let html = readFileSync(indexPath, 'utf-8');
-  // Add gallery link if not present
-  if (!html.includes('weather-gallery')) {
-    html = html.replace(
-      '</div>\n</section>',
-      `</div>
-</section>
-
-<section class="gallery-link" style="text-align:center; padding: 40px 20px;">
-  <a href="weather-gallery/index.html" style="display:inline-block; padding: 14px 28px; background: rgba(78,234,221,0.08); color: #4eeadd; border: 1px solid rgba(78,234,221,0.2); border-radius: 8px; text-decoration: none; font-size: 1rem; letter-spacing: 0.5px; transition: all 0.2s;">
-    🌤️ Weather Gallery — Living art from London's sky
-  </a>
-</section>`
-    );
-    writeFileSync(indexPath, html);
-  }
-}
-
-main().catch(err => { console.error('Error:', err); process.exit(1); });
+main().catch(err => {
+  console.error('ERROR:', err.message);
+  process.exit(1);
+});

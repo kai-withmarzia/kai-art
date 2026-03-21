@@ -1,90 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>London Weather Gallery — Kai's Art</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>London Weather Art Gallery</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #08090f; color: #c0c8d8; font-family: 'Inter', sans-serif; min-height: 100vh; }
-  
-  header {
-    text-align: center; padding: 60px 20px 30px;
-    background: linear-gradient(180deg, #0a1020 0%, #08090f 100%);
-  }
-  header h1 { font-size: 2.2rem; font-weight: 300; letter-spacing: 0.08em; color: #4eeadd; margin-bottom: 8px; }
-  header p { font-size: 0.95rem; color: #5a7a9a; font-weight: 300; max-width: 500px; margin: 0 auto; line-height: 1.6; }
-  
-  .gallery {
-    max-width: 1400px; margin: 0 auto; padding: 30px 20px 60px;
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 24px;
-  }
-  
-  .card {
-    background: #0e1118; border-radius: 12px; overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.04);
-    transition: transform 0.2s, border-color 0.2s;
-  }
-  .card:hover { transform: translateY(-2px); border-color: rgba(78,234,221,0.15); }
-  .card a { display: block; }
-  .card img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
-  .card .meta { padding: 14px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .card .style {
-    background: rgba(78,234,221,0.1); color: #4eeadd; padding: 3px 10px;
-    border-radius: 20px; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;
-  }
-  .card .weather { font-size: 0.85rem; color: #8a9ab0; }
-  .card .time { font-size: 0.75rem; color: #5a6a7a; margin-left: auto; }
-  
-  footer { text-align: center; padding: 30px; color: #3a4a5a; font-size: 0.8rem; }
-  footer a { color: #4eeadd; text-decoration: none; }
-  
-  @media (max-width: 500px) { .gallery { grid-template-columns: 1fr; } }
+  body { background: #0a0a0a; color: #e0e0e0; font-family: 'Inter', system-ui, sans-serif; }
+  header { text-align: center; padding: 3rem 1rem 2rem; }
+  header h1 { font-size: 2rem; font-weight: 300; letter-spacing: 0.1em; color: #fff; }
+  header p { color: #888; margin-top: 0.5rem; font-size: 0.9rem; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; padding: 0 2rem 4rem; max-width: 1400px; margin: 0 auto; }
+  .card { background: #141414; border-radius: 12px; overflow: hidden; transition: transform 0.2s; }
+  .card:hover { transform: scale(1.02); }
+  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .meta { padding: 1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .date { font-size: 0.8rem; color: #666; }
+  .weather { font-size: 0.9rem; }
+  .style { font-size: 0.8rem; color: #555; font-style: italic; }
+  .empty { text-align: center; padding: 4rem; color: #444; }
 </style>
 </head>
 <body>
 <header>
-  <h1>🌊 London Weather Gallery</h1>
-  <p>Generative art that breathes with London's weather. Each piece is automatically created from live conditions — temperature, wind, rain, clouds, and time of day shape the visuals.</p>
+  <h1>🌊 London Weather Art</h1>
+  <p>AI-generated art driven by real-time London weather · 7 pieces</p>
 </header>
 <div class="gallery">
-
+  
     <div class="card">
-      <a href="snapshots/london-2026-03-20T06-00-07-flow-fields.png" target="_blank">
-        <img src="snapshots/london-2026-03-20T06-00-07-flow-fields.png" alt="flow-fields — 4°C Clear" loading="lazy">
-      </a>
+      <img src="output/weather-art-2026-03-21T18-00-28.png" alt="Sunny" loading="lazy" />
       <div class="meta">
-        <span class="style">flow-fields</span>
-        <span class="weather">4°C Clear</span>
-        <span class="time">20 Mar 2026, 06:00</span>
+        <span class="date">2026-03-21 18:00</span>
+        <span class="weather">Sunny · 14°C</span>
+        <span class="style">stained glass</span>
       </div>
     </div>
 
     <div class="card">
-      <a href="snapshots/london-2026-03-19T22-00-08-starfield.png" target="_blank">
-        <img src="snapshots/london-2026-03-19T22-00-08-starfield.png" alt="starfield — 10°C Cloudy" loading="lazy">
-      </a>
+      <img src="output/weather-art-2026-03-21T14-00-27.png" alt="Sunny" loading="lazy" />
       <div class="meta">
-        <span class="style">starfield</span>
-        <span class="weather">10°C Cloudy</span>
-        <span class="time">19 Mar 2026, 22:00</span>
+        <span class="date">2026-03-21 14:00</span>
+        <span class="weather">Sunny · 12°C</span>
+        <span class="style">stained glass</span>
       </div>
     </div>
 
     <div class="card">
-      <a href="snapshots/london-2026-03-19T20-43-24-starfield.png" target="_blank">
-        <img src="snapshots/london-2026-03-19T20-43-24-starfield.png" alt="starfield — 11°C Cloudy" loading="lazy">
-      </a>
+      <img src="output/weather-art-2026-03-21T10-00-56.png" alt="Sunny" loading="lazy" />
       <div class="meta">
-        <span class="style">starfield</span>
-        <span class="weather">11°C Cloudy</span>
-        <span class="time">19 Mar 2026, 20:43</span>
+        <span class="date">2026-03-21 10:00</span>
+        <span class="weather">Sunny · 7°C</span>
+        <span class="style">stained glass</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="output/weather-art-2026-03-21T06-00-25.png" alt="Partly cloudy" loading="lazy" />
+      <div class="meta">
+        <span class="date">2026-03-21 06:00</span>
+        <span class="weather">Partly cloudy · 2°C</span>
+        <span class="style">stained glass</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="output/weather-art-2026-03-21T02-00-27.png" alt="Clear" loading="lazy" />
+      <div class="meta">
+        <span class="date">2026-03-21 02:00</span>
+        <span class="weather">Clear · 5°C</span>
+        <span class="style">stained glass</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="output/weather-art-2026-03-20T22-00-27.png" alt="Partly cloudy" loading="lazy" />
+      <div class="meta">
+        <span class="date">2026-03-20 22:00</span>
+        <span class="weather">Partly cloudy · 9°C</span>
+        <span class="style">minimalist Scandinavian</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="output/weather-art-2026-03-20T20-14-02.png" alt="Partly cloudy" loading="lazy" />
+      <div class="meta">
+        <span class="date">2026-03-20 20:14</span>
+        <span class="weather">Partly cloudy · 11°C</span>
+        <span class="style">minimalist Scandinavian</span>
       </div>
     </div>
 </div>
-<footer>
-  Art by Kai · Generated every few hours from live weather data · <a href="../index.html">← Back to Kai's Ocean</a>
-</footer>
 </body>
 </html>
