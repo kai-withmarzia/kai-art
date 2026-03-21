@@ -8,6 +8,7 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = join(__dirname, 'output');
@@ -207,6 +208,18 @@ async function main() {
   // Rebuild gallery
   buildGallery();
   console.log('Gallery updated.');
+
+  // Auto-push to GitHub
+  try {
+    const repoRoot = join(__dirname, '..');
+    execSync('git add weather-gallery/output/ weather-gallery/index.html', { cwd: repoRoot });
+    const style = styles[dayOfYear % styles.length];
+    execSync(`git commit -m "🎨 Weather art: ${style} — ${weather.weatherDesc.toLowerCase()} ${weather.temp_C}°C"`, { cwd: repoRoot });
+    execSync('git push origin main', { cwd: repoRoot });
+    console.log('Pushed to GitHub.');
+  } catch (pushErr) {
+    console.error('Git push failed (non-fatal):', pushErr.message);
+  }
 
   console.log('Done! ✨');
 }
