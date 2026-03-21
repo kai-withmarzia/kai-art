@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = join(__dirname, 'output');
 const GALLERY_PATH = join(__dirname, 'index.html');
+const TEMPLATE_PATH = join(__dirname, 'template.html');
 const MANIFEST_PATH = join(OUTPUT_DIR, 'manifest.json');
 
 // Ensure output dir exists
@@ -139,52 +140,9 @@ function buildGallery() {
     try { manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')); } catch {}
   }
 
-  const entries = manifest.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  const cards = entries.map(e => `
-    <div class="card">
-      <img src="output/${e.filename}" alt="${e.weather}" loading="lazy" />
-      <div class="meta">
-        <span class="date">${e.date}</span>
-        <span class="weather">${e.weather} · ${e.temp}°C</span>
-        <span class="style">${e.style || ''}</span>
-      </div>
-    </div>`).join('\n');
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>London Weather Art Gallery</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0a0a0a; color: #e0e0e0; font-family: 'Inter', system-ui, sans-serif; }
-  header { text-align: center; padding: 3rem 1rem 2rem; }
-  header h1 { font-size: 2rem; font-weight: 300; letter-spacing: 0.1em; color: #fff; }
-  header p { color: #888; margin-top: 0.5rem; font-size: 0.9rem; }
-  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; padding: 0 2rem 4rem; max-width: 1400px; margin: 0 auto; }
-  .card { background: #141414; border-radius: 12px; overflow: hidden; transition: transform 0.2s; }
-  .card:hover { transform: scale(1.02); }
-  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
-  .meta { padding: 1rem; display: flex; flex-direction: column; gap: 0.3rem; }
-  .date { font-size: 0.8rem; color: #666; }
-  .weather { font-size: 0.9rem; }
-  .style { font-size: 0.8rem; color: #555; font-style: italic; }
-  .empty { text-align: center; padding: 4rem; color: #444; }
-</style>
-</head>
-<body>
-<header>
-  <h1>🌊 London Weather Art</h1>
-  <p>AI-generated art driven by real-time London weather · ${entries.length} pieces</p>
-</header>
-<div class="gallery">
-  ${cards || '<div class="empty">No art generated yet. Check back soon.</div>'}
-</div>
-</body>
-</html>`;
-
+  // Read the HTML template and inject manifest data
+  let html = readFileSync(TEMPLATE_PATH, 'utf8');
+  html = html.replace('MANIFEST_DATA', JSON.stringify(manifest));
   writeFileSync(GALLERY_PATH, html);
 }
 
