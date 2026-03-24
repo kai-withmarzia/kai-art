@@ -218,5 +218,15 @@
     "wind": "18",
     "style": "art deco poster",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: partly cloudy, 11°C. Style: art deco poster design. Mood: bright morning, crisp and alert. Temperature feel: cool, muted tones, gentle. Atmosphere: misty, diffused, watercolor bleeds. Movement: gentle movement, swaying forms. Wind: 18 km/h, cloud cover 75%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-03-24T18-00-25.png",
+    "date": "2026-03-24 18:00",
+    "weather": "Partly cloudy",
+    "temp": "12",
+    "humidity": "82",
+    "wind": "30",
+    "style": "art deco poster",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: partly cloudy, 12°C. Style: art deco poster design. Mood: golden hour, warm amber and violet. Temperature feel: comfortable, balanced palette. Atmosphere: misty, diffused, watercolor bleeds. Movement: flowing movement, dynamic curves. Wind: 30 km/h, cloud cover 50%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
