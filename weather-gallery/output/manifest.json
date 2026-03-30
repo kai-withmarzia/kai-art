@@ -478,5 +478,15 @@
     "wind": "23",
     "style": "impressionist",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: overcast, 8°C. Style: impressionist landscape. Mood: night, deep indigo and electric highlights. Temperature feel: cool, muted tones, gentle. Atmosphere: misty, diffused, watercolor bleeds. Movement: flowing movement, dynamic curves. Wind: 23 km/h, cloud cover 100%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-03-30T01-00-23.png",
+    "date": "2026-03-30 01:00",
+    "weather": "Patchy rain nearby",
+    "temp": "8",
+    "humidity": "87",
+    "wind": "16",
+    "style": "cyberpunk digital",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: patchy rain nearby, 8°C. Style: cyberpunk digital art with neon accents. Mood: night, deep indigo and electric highlights. Temperature feel: cool, muted tones, gentle. Atmosphere: misty, diffused, watercolor bleeds. Movement: gentle movement, swaying forms. Wind: 16 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
