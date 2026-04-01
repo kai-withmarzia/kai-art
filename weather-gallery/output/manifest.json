@@ -578,5 +578,15 @@
     "wind": "5",
     "style": "watercolor botanical",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: patchy rain nearby, 15°C. Style: watercolor botanical illustration. Mood: night, deep indigo and electric highlights. Temperature feel: comfortable, balanced palette. Atmosphere: soft edges, gentle atmosphere. Movement: stillness, meditation, calm geometry. Wind: 5 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-04-01T01-00-26.png",
+    "date": "2026-04-01 01:00",
+    "weather": "Partly cloudy",
+    "temp": "8",
+    "humidity": "81",
+    "wind": "4",
+    "style": "brutalist charcoal",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: partly cloudy, 8°C. Style: brutalist architecture rendered in charcoal. Mood: night, deep indigo and electric highlights. Temperature feel: cool, muted tones, gentle. Atmosphere: misty, diffused, watercolor bleeds. Movement: stillness, meditation, calm geometry. Wind: 4 km/h, cloud cover 50%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
