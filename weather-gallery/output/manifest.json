@@ -638,5 +638,15 @@
     "wind": "20",
     "style": "minimalist Scandinavian",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: rain, 10°C. Style: minimalist Scandinavian design. Mood: bright morning, crisp and alert. Temperature feel: cool, muted tones, gentle. Atmosphere: misty, diffused, watercolor bleeds. Movement: gentle movement, swaying forms. Wind: 20 km/h, cloud cover 75%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-04-03T21-00-50.png",
+    "date": "2026-04-03 21:00",
+    "weather": "Patchy rain nearby",
+    "temp": "13",
+    "humidity": "67",
+    "wind": "21",
+    "style": "minimalist Scandinavian",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: patchy rain nearby, 13°C. Style: minimalist Scandinavian design. Mood: night, deep indigo and electric highlights. Temperature feel: comfortable, balanced palette. Atmosphere: soft edges, gentle atmosphere. Movement: flowing movement, dynamic curves. Wind: 21 km/h, cloud cover 25%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
