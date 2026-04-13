@@ -828,5 +828,15 @@
     "wind": "6",
     "style": "cyberpunk digital",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: shower in vicinity, rain shower, 12°C. Style: cyberpunk digital art with neon accents. Mood: midday, high contrast and vivid. Temperature feel: comfortable, balanced palette. Atmosphere: soft edges, gentle atmosphere. Movement: stillness, meditation, calm geometry. Wind: 6 km/h, cloud cover 25%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-04-13T21-01-51.png",
+    "date": "2026-04-13 21:01",
+    "weather": "Patchy rain nearby",
+    "temp": "10",
+    "humidity": "62",
+    "wind": "7",
+    "style": "cyberpunk digital",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: patchy rain nearby, 10°C. Style: cyberpunk digital art with neon accents. Mood: night, deep indigo and electric highlights. Temperature feel: cool, muted tones, gentle. Atmosphere: soft edges, gentle atmosphere. Movement: stillness, meditation, calm geometry. Wind: 7 km/h, cloud cover 25%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
