@@ -978,5 +978,15 @@
     "wind": "15",
     "style": "art deco poster",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: overcast, 9°C. Style: art deco poster design. Mood: bright morning, crisp and alert. Temperature feel: cool, muted tones, gentle. Atmosphere: soft edges, gentle atmosphere. Movement: gentle movement, swaying forms. Wind: 15 km/h, cloud cover 25%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-04-22T01-00-48.png",
+    "date": "2026-04-22 01:00",
+    "weather": "Clear",
+    "temp": "7",
+    "humidity": "70",
+    "wind": "16",
+    "style": "abstract expressionism",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: clear, 7°C. Style: abstract expressionism with bold brushstrokes. Mood: night, deep indigo and electric highlights. Temperature feel: cool, muted tones, gentle. Atmosphere: soft edges, gentle atmosphere. Movement: gentle movement, swaying forms. Wind: 16 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
