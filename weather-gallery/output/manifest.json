@@ -988,5 +988,15 @@
     "wind": "16",
     "style": "abstract expressionism",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: clear, 7°C. Style: abstract expressionism with bold brushstrokes. Mood: night, deep indigo and electric highlights. Temperature feel: cool, muted tones, gentle. Atmosphere: soft edges, gentle atmosphere. Movement: gentle movement, swaying forms. Wind: 16 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-04-23T11-50-07.png",
+    "date": "2026-04-23 11:50",
+    "weather": "Sunny",
+    "temp": "13",
+    "humidity": "62",
+    "wind": "19",
+    "style": "Japanese sumi-e",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: sunny, 13°C. Style: Japanese ink wash painting (sumi-e). Mood: bright morning, crisp and alert. Temperature feel: comfortable, balanced palette. Atmosphere: soft edges, gentle atmosphere. Movement: gentle movement, swaying forms. Wind: 19 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
