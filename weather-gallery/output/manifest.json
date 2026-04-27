@@ -1068,5 +1068,15 @@
     "wind": "10",
     "style": "impressionist",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: overcast, 17°C. Style: impressionist landscape. Mood: midday, high contrast and vivid. Temperature feel: comfortable, balanced palette. Atmosphere: dry, sharp, high-definition edges. Movement: stillness, meditation, calm geometry. Wind: 10 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-04-27T09-08-25.png",
+    "date": "2026-04-27 09:08",
+    "weather": "Sunny",
+    "temp": "14",
+    "humidity": "63",
+    "wind": "5",
+    "style": "cyberpunk digital",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: sunny, 14°C. Style: cyberpunk digital art with neon accents. Mood: bright morning, crisp and alert. Temperature feel: comfortable, balanced palette. Atmosphere: soft edges, gentle atmosphere. Movement: stillness, meditation, calm geometry. Wind: 5 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
