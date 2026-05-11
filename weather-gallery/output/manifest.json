@@ -1288,5 +1288,15 @@
     "wind": "12",
     "style": "geometric constructivism",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: sunny, 20°C. Style: geometric constructivism. Mood: midday, high contrast and vivid. Temperature feel: warm, saturated, lush. Atmosphere: dry, sharp, high-definition edges. Movement: gentle movement, swaying forms. Wind: 12 km/h, cloud cover 0%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-05-11T13-00-51.png",
+    "date": "2026-05-11 13:00",
+    "weather": "Light rain",
+    "temp": "9",
+    "humidity": "81",
+    "wind": "13",
+    "style": "cyberpunk digital",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: light rain, 9°C. Style: cyberpunk digital art with neon accents. Mood: midday, high contrast and vivid. Temperature feel: cool, muted tones, gentle. Atmosphere: misty, diffused, watercolor bleeds. Movement: gentle movement, swaying forms. Wind: 13 km/h, cloud cover 75%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
