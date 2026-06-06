@@ -1548,5 +1548,15 @@
     "wind": "19",
     "style": "Japanese sumi-e",
     "prompt": "Create an abstract artwork inspired by London's current atmosphere: rain shower, 15°C. Style: Japanese ink wash painting (sumi-e). Mood: bright morning, crisp and alert. Temperature feel: comfortable, balanced palette. Atmosphere: soft edges, gentle atmosphere. Movement: gentle movement, swaying forms. Wind: 19 km/h, cloud cover 75%. No text or words in the image. Square format, museum-quality composition."
+  },
+  {
+    "filename": "weather-art-2026-06-06T13-00-58.png",
+    "date": "2026-06-06 13:00",
+    "weather": "Light Rain",
+    "temp": "17",
+    "humidity": "77",
+    "wind": "30",
+    "style": "geometric constructivism",
+    "prompt": "Create an abstract artwork inspired by London's current atmosphere: light rain, 17°C. Style: geometric constructivism. Mood: midday, high contrast and vivid. Temperature feel: comfortable, balanced palette. Atmosphere: soft edges, gentle atmosphere. Movement: flowing movement, dynamic curves. Wind: 30 km/h, cloud cover 50%. No text or words in the image. Square format, museum-quality composition."
   }
 ]
